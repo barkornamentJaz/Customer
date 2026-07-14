@@ -588,6 +588,10 @@ mainEl.innerHTML =
   '  <form id="customerForm" novalidate>' +
   '    <div class="form-grid">' +
 
+  '      <div class="field"><label>Serial No</label>' +
+  '        <input type="text" id="serialNo" readonly style="background:var(--canvas);color:var(--muted);font-weight:600;">' +
+  '        <div class="hint" id="serialNoHint"></div></div>' +
+
   '      <div class="field"><label>Company / Customer Name *</label>' +
   '        <input type="text" id="companyName">' +
   '        <div class="error-msg" data-for="companyName"></div></div>' +
@@ -681,6 +685,28 @@ function updateCountryHint() {
     document.getElementById('currentCurrencyLabel').textContent = cfg.currency;
   } else {
     hint.textContent = '';
+  }
+  refreshSerialPreview();
+}
+
+async function refreshSerialPreview() {
+  const serialInput = document.getElementById('serialNo');
+  const hint = document.getElementById('serialNoHint');
+  if (isEdit) return; // edit mode sets this once from the existing record instead
+
+  const cfg = CountryConfig.find(document.getElementById('country').value);
+  if (!cfg) {
+    serialInput.value = '';
+    hint.textContent = 'Select a country to preview the serial number.';
+    return;
+  }
+  serialInput.value = '\u2026';
+  hint.textContent = 'Auto-generated — assigned for real when you save.';
+  try {
+    const existing = await CustomerStore.load();
+    serialInput.value = nextSerialNo(existing, cfg.prefix);
+  } catch (err) {
+    serialInput.value = cfg.prefix + '-0001';
   }
 }
 
@@ -789,6 +815,8 @@ async function prefillIfEditing() {
       showToast('Customer not found for editing.', 'error');
       return;
     }
+    document.getElementById('serialNo').value = record.serialNo || '';
+    document.getElementById('serialNoHint').textContent = 'Serial numbers don\u2019t change when editing a customer.';
     document.getElementById('companyName').value = record.companyName || '';
     document.getElementById('contactPerson').value = record.contactPerson || '';
     populateCountrySelect(record.country);
