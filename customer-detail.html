@@ -77,6 +77,69 @@ const STATUS_COLORS = {
   'Existing Customer': '#10B981'
 };
 
+/* ---------- Country / currency / serial-prefix configuration ----------
+   Each country has a serial-number prefix (e.g. MAL-0001) and a currency.
+   Defaults cover the current business segments; more can be added from
+   the Add Customer form ("+ Add New Country") without touching code.
+   NOTE: custom countries are stored in this browser's localStorage, so
+   they are per-device for now — see chat notes on syncing this via the
+   Apps Script backend if the whole team needs to see new countries. */
+
+const DEFAULT_COUNTRIES = [
+  { name: 'Maldives', prefix: 'MAL', currency: 'USD' },
+  { name: 'Seychelles', prefix: 'SEY', currency: 'USD' },
+  { name: 'Local', prefix: 'LOC', currency: 'LKR' }
+];
+
+const CountryConfig = {
+  _key: 'bo_custom_countries',
+  _customList() {
+    try {
+      const raw = localStorage.getItem(this._key);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  },
+  getAll() {
+    const map = {};
+    DEFAULT_COUNTRIES.forEach(function (c) { map[c.name.toLowerCase()] = c; });
+    this._customList().forEach(function (c) { map[c.name.toLowerCase()] = c; });
+    return Object.values(map).sort(function (a, b) { return a.name.localeCompare(b.name); });
+  },
+  find(name) {
+    const key = String(name || '').toLowerCase();
+    return this.getAll().find(function (c) { return c.name.toLowerCase() === key; });
+  },
+  add(entry) {
+    const name = (entry.name || '').trim();
+    const prefix = (entry.prefix || '').trim().toUpperCase();
+    const currency = (entry.currency || '').trim().toUpperCase();
+    if (!name || !prefix || !currency) throw new Error('Country name, serial prefix, and currency are all required.');
+    if (!/^[A-Z]{2,5}$/.test(prefix)) throw new Error('Prefix should be 2-5 letters, e.g. MAL, SEY, MAU.');
+    if (!/^[A-Z]{3}$/.test(currency)) throw new Error('Currency should be a 3-letter code, e.g. USD, LKR.');
+    const existing = this.getAll();
+    if (existing.some(function (c) { return c.name.toLowerCase() === name.toLowerCase(); })) throw new Error('That country already exists.');
+    if (existing.some(function (c) { return c.prefix.toLowerCase() === prefix.toLowerCase(); })) throw new Error('That serial prefix is already in use — pick a different one.');
+    const list = this._customList();
+    const record = { name: name, prefix: prefix, currency: currency };
+    list.push(record);
+    localStorage.setItem(this._key, JSON.stringify(list));
+    return record;
+  }
+};
+
+// Given the current customer list and a country's prefix, work out the next
+// serial number in sequence, e.g. existing MAL-0001, MAL-0002 -> MAL-0003.
+function nextSerialNo(customers, prefix) {
+  let max = 0;
+  (customers || []).forEach(function (c) {
+    if (c.serialNo && c.serialNo.indexOf(prefix + '-') === 0) {
+      const n = parseInt(c.serialNo.slice(prefix.length + 1), 10);
+      if (!isNaN(n) && n > max) max = n;
+    }
+  });
+  return prefix + '-' + String(max + 1).padStart(4, '0');
+}
+
 
 /* ============================================================
    Bark Ornament — Customer Management System
@@ -275,8 +338,8 @@ async function load() {
 
       '<div class="section-title">Sales Information</div>' +
       '<div class="grid">' +
-      row('Expected Sales Volume', formatCurrency(c.expectedSalesVolume)) +
-      row('Current Sales Volume', formatCurrency(c.currentSalesVolume)) +
+      row('Expected Sales Volume', formatCurrency(c.expectedSalesVolume, c.currency)) +
+      row('Current Sales Volume', formatCurrency(c.currentSalesVolume, c.currency)) +
       row('Created Date', formatDate(c.createdDate)) +
       '</div>' +
 
