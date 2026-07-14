@@ -351,6 +351,20 @@ const STATUS_COLORS = {
   'Existing Customer': '#10B981'
 };
 
+// How this customer/lead first came in. "Other" reveals a free-text box
+// so anything not on the list can still be captured.
+const SOURCE_OPTIONS = [
+  'WhatsApp',
+  'Facebook',
+  'Instagram',
+  'Email',
+  'Phone Call',
+  'Website',
+  'Referral',
+  'Walk-in',
+  'Other'
+];
+
 /* ---------- Country / currency / serial-prefix configuration ----------
    Each country has a serial-number prefix (e.g. MAL-0001) and a currency.
    Defaults cover the current business segments; more can be added from
@@ -398,6 +412,17 @@ const CountryConfig = {
     list.push(record);
     localStorage.setItem(this._key, JSON.stringify(list));
     return record;
+  },
+  remove(name) {
+    const key = String(name || '').toLowerCase();
+    if (DEFAULT_COUNTRIES.some(function (c) { return c.name.toLowerCase() === key; })) {
+      throw new Error('The built-in countries (Maldives, Seychelles, Local) can\u2019t be removed.');
+    }
+    const list = this._customList();
+    const idx = list.findIndex(function (c) { return c.name.toLowerCase() === key; });
+    if (idx === -1) throw new Error('That country was not found — it may have already been removed.');
+    list.splice(idx, 1);
+    localStorage.setItem(this._key, JSON.stringify(list));
   }
 };
 
@@ -601,7 +626,10 @@ mainEl.innerHTML =
   '        <div class="error-msg" data-for="contactPerson"></div></div>' +
 
   '      <div class="field"><label>Country *</label>' +
-  '        <select id="country"></select>' +
+  '        <div style="display:flex;gap:8px;align-items:center;">' +
+  '          <select id="country" style="flex:1;"></select>' +
+  '          <button type="button" class="btn btn-outline btn-sm" id="manageCountriesBtn" style="flex-shrink:0;">Manage</button>' +
+  '        </div>' +
   '        <div class="hint" id="countryHint"></div>' +
   '        <div class="error-msg" data-for="country"></div></div>' +
 
@@ -624,6 +652,15 @@ mainEl.innerHTML =
   '      <div class="field"><label>Contact Number</label>' +
   '        <input type="text" id="contactNumber">' +
   '        <div class="error-msg" data-for="contactNumber"></div></div>' +
+
+  '      <div class="field"><label>Source *</label>' +
+  '        <select id="source"></select>' +
+  '        <div class="hint">How did this customer/lead come in?</div>' +
+  '        <div class="error-msg" data-for="source"></div></div>' +
+
+  '      <div class="field" id="sourceOtherField" style="display:none;"><label>Please specify *</label>' +
+  '        <input type="text" id="sourceOther" placeholder="e.g. trade show, walk-by, friend referral">' +
+  '        <div class="error-msg" data-for="sourceOther"></div></div>' +
 
   '      <div class="field"><label>Expected Sales Volume (<span id="expectedCurrencyLabel">USD</span>)</label>' +
   '        <input type="number" id="expectedSalesVolume" min="0" step="0.01">' +
@@ -754,8 +791,78 @@ document.getElementById('saveNewCountry').addEventListener('click', function () 
 
 populateCountrySelect();
 
-const fields = ['companyName', 'contactPerson', 'country', 'nationality', 'industry', 'status', 'email', 'contactNumber', 'expectedSalesVolume', 'currentSalesVolume'];
-const required = ['companyName', 'country', 'industry'];
+/* ---------- Source dropdown ("Other" reveals free-text) ---------- */
+
+const sourceSelect = document.getElementById('source');
+sourceSelect.innerHTML = '<option value="">Select a source\u2026</option>' +
+  SOURCE_OPTIONS.map(s => '<option value="' + s + '">' + s + '</option>').join('');
+
+sourceSelect.addEventListener('change', function () {
+  const otherField = document.getElementById('sourceOtherField');
+  if (this.value === 'Other') {
+    otherField.style.display = 'flex';
+    document.getElementById('sourceOther').focus();
+  } else {
+    otherField.style.display = 'none';
+  }
+});
+
+/* ---------- Manage Countries modal ---------- */
+
+function openManageCountriesModal() {
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.id = 'manageCountriesModal';
+
+  function rowsHtml() {
+    const countries = CountryConfig.getAll();
+    return countries.map(function (c) {
+      const isDefault = DEFAULT_COUNTRIES.some(function (d) { return d.name.toLowerCase() === c.name.toLowerCase(); });
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 4px;border-bottom:1px solid var(--border);font-size:13.5px;">' +
+        '<div><strong>' + escapeHtml(c.name) + '</strong> <span style="color:var(--muted);">(' + c.prefix + ' \u00b7 ' + c.currency + ')</span></div>' +
+        (isDefault
+          ? '<span style="font-size:11.5px;color:var(--muted);">Default</span>'
+          : '<button type="button" class="btn btn-danger btn-sm" data-remove-country="' + escapeHtml(c.name) + '">Remove</button>') +
+        '</div>';
+    }).join('');
+  }
+
+  backdrop.innerHTML =
+    '<div class="modal" style="max-width:460px;">' +
+    '  <h3>Manage Countries</h3>' +
+    '  <p>Default countries can\u2019t be removed since existing serial numbers depend on them. Countries you\u2019ve added can be removed here.</p>' +
+    '  <div id="manageCountriesList" style="max-height:320px;overflow-y:auto;margin-bottom:18px;">' + rowsHtml() + '</div>' +
+    '  <div class="modal-actions"><button type="button" class="btn btn-outline" id="closeManageCountries">Close</button></div>' +
+    '</div>';
+  document.body.appendChild(backdrop);
+
+  function attachRemoveHandlers() {
+    backdrop.querySelectorAll('[data-remove-country]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const name = btn.getAttribute('data-remove-country');
+        if (!confirm('Remove "' + name + '" from the country list? Existing customers already saved under this country keep their records — this only stops it appearing for new entries.')) return;
+        try {
+          CountryConfig.remove(name);
+          document.getElementById('manageCountriesList').innerHTML = rowsHtml();
+          attachRemoveHandlers();
+          populateCountrySelect();
+          showToast('Removed ' + name + '.', 'success');
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      });
+    });
+  }
+  attachRemoveHandlers();
+
+  backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
+  document.getElementById('closeManageCountries').addEventListener('click', function () { backdrop.remove(); });
+}
+
+document.getElementById('manageCountriesBtn').addEventListener('click', openManageCountriesModal);
+
+const fields = ['companyName', 'contactPerson', 'country', 'nationality', 'industry', 'status', 'email', 'contactNumber', 'source', 'sourceOther', 'expectedSalesVolume', 'currentSalesVolume'];
+const required = ['companyName', 'country', 'industry', 'source'];
 
 function clearErrors() {
   fields.forEach(function (f) {
@@ -782,6 +889,11 @@ function validate() {
       valid = false;
     }
   });
+
+  if (document.getElementById('source').value === 'Other' && !document.getElementById('sourceOther').value.trim()) {
+    setError('sourceOther', 'Please specify the source.');
+    valid = false;
+  }
 
   const email = document.getElementById('email').value.trim();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -832,6 +944,15 @@ async function prefillIfEditing() {
     document.getElementById('status').value = record.status || 'New Lead';
     document.getElementById('email').value = record.email || '';
     document.getElementById('contactNumber').value = record.contactNumber || '';
+    const recordSource = record.source || '';
+    if (recordSource && SOURCE_OPTIONS.indexOf(recordSource) !== -1 && recordSource !== 'Other') {
+      sourceSelect.value = recordSource;
+      document.getElementById('sourceOtherField').style.display = 'none';
+    } else if (recordSource) {
+      sourceSelect.value = 'Other';
+      document.getElementById('sourceOtherField').style.display = 'flex';
+      document.getElementById('sourceOther').value = recordSource;
+    }
     document.getElementById('expectedSalesVolume').value = record.expectedSalesVolume || '';
     document.getElementById('currentSalesVolume').value = record.currentSalesVolume || '';
   } catch (err) {
@@ -858,6 +979,9 @@ document.getElementById('customerForm').addEventListener('submit', async functio
     status: document.getElementById('status').value,
     email: document.getElementById('email').value.trim(),
     contactNumber: document.getElementById('contactNumber').value.trim(),
+    source: document.getElementById('source').value === 'Other'
+      ? document.getElementById('sourceOther').value.trim()
+      : document.getElementById('source').value,
     currency: countryCfg ? countryCfg.currency : 'USD',
     expectedSalesVolume: document.getElementById('expectedSalesVolume').value || 0,
     currentSalesVolume: document.getElementById('currentSalesVolume').value || 0
