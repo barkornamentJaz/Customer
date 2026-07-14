@@ -351,6 +351,69 @@ const STATUS_COLORS = {
   'Existing Customer': '#10B981'
 };
 
+/* ---------- Country / currency / serial-prefix configuration ----------
+   Each country has a serial-number prefix (e.g. MAL-0001) and a currency.
+   Defaults cover the current business segments; more can be added from
+   the Add Customer form ("+ Add New Country") without touching code.
+   NOTE: custom countries are stored in this browser's localStorage, so
+   they are per-device for now — see chat notes on syncing this via the
+   Apps Script backend if the whole team needs to see new countries. */
+
+const DEFAULT_COUNTRIES = [
+  { name: 'Maldives', prefix: 'MAL', currency: 'USD' },
+  { name: 'Seychelles', prefix: 'SEY', currency: 'USD' },
+  { name: 'Local', prefix: 'LOC', currency: 'LKR' }
+];
+
+const CountryConfig = {
+  _key: 'bo_custom_countries',
+  _customList() {
+    try {
+      const raw = localStorage.getItem(this._key);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  },
+  getAll() {
+    const map = {};
+    DEFAULT_COUNTRIES.forEach(function (c) { map[c.name.toLowerCase()] = c; });
+    this._customList().forEach(function (c) { map[c.name.toLowerCase()] = c; });
+    return Object.values(map).sort(function (a, b) { return a.name.localeCompare(b.name); });
+  },
+  find(name) {
+    const key = String(name || '').toLowerCase();
+    return this.getAll().find(function (c) { return c.name.toLowerCase() === key; });
+  },
+  add(entry) {
+    const name = (entry.name || '').trim();
+    const prefix = (entry.prefix || '').trim().toUpperCase();
+    const currency = (entry.currency || '').trim().toUpperCase();
+    if (!name || !prefix || !currency) throw new Error('Country name, serial prefix, and currency are all required.');
+    if (!/^[A-Z]{2,5}$/.test(prefix)) throw new Error('Prefix should be 2-5 letters, e.g. MAL, SEY, MAU.');
+    if (!/^[A-Z]{3}$/.test(currency)) throw new Error('Currency should be a 3-letter code, e.g. USD, LKR.');
+    const existing = this.getAll();
+    if (existing.some(function (c) { return c.name.toLowerCase() === name.toLowerCase(); })) throw new Error('That country already exists.');
+    if (existing.some(function (c) { return c.prefix.toLowerCase() === prefix.toLowerCase(); })) throw new Error('That serial prefix is already in use — pick a different one.');
+    const list = this._customList();
+    const record = { name: name, prefix: prefix, currency: currency };
+    list.push(record);
+    localStorage.setItem(this._key, JSON.stringify(list));
+    return record;
+  }
+};
+
+// Given the current customer list and a country's prefix, work out the next
+// serial number in sequence, e.g. existing MAL-0001, MAL-0002 -> MAL-0003.
+function nextSerialNo(customers, prefix) {
+  let max = 0;
+  (customers || []).forEach(function (c) {
+    if (c.serialNo && c.serialNo.indexOf(prefix + '-') === 0) {
+      const n = parseInt(c.serialNo.slice(prefix.length + 1), 10);
+      if (!isNaN(n) && n > max) max = n;
+    }
+  });
+  return prefix + '-' + String(max + 1).padStart(4, '0');
+}
+
 
 /* ============================================================
    Bark Ornament — Customer Management System
@@ -534,7 +597,8 @@ mainEl.innerHTML =
   '        <div class="error-msg" data-for="contactPerson"></div></div>' +
 
   '      <div class="field"><label>Country *</label>' +
-  '        <input type="text" id="country">' +
+  '        <select id="country"></select>' +
+  '        <div class="hint" id="countryHint"></div>' +
   '        <div class="error-msg" data-for="country"></div></div>' +
 
   '      <div class="field"><label>Nationality</label>' +
@@ -557,15 +621,33 @@ mainEl.innerHTML =
   '        <input type="text" id="contactNumber">' +
   '        <div class="error-msg" data-for="contactNumber"></div></div>' +
 
-  '      <div class="field"><label>Expected Sales Volume (USD)</label>' +
+  '      <div class="field"><label>Expected Sales Volume (<span id="expectedCurrencyLabel">USD</span>)</label>' +
   '        <input type="number" id="expectedSalesVolume" min="0" step="0.01">' +
   '        <div class="error-msg" data-for="expectedSalesVolume"></div></div>' +
 
-  '      <div class="field"><label>Current Sales Volume (USD)</label>' +
+  '      <div class="field"><label>Current Sales Volume (<span id="currentCurrencyLabel">USD</span>)</label>' +
   '        <input type="number" id="currentSalesVolume" min="0" step="0.01">' +
   '        <div class="error-msg" data-for="currentSalesVolume"></div></div>' +
 
   '    </div>' +
+
+  '    <div class="card" id="newCountryPanel" style="display:none;margin-top:18px;background:var(--canvas);border-style:dashed;">' +
+  '      <h4 style="font-size:14px;margin-bottom:14px;">Add a New Country</h4>' +
+  '      <div class="form-grid">' +
+  '        <div class="field"><label>Country Name *</label>' +
+  '          <input type="text" id="newCountryName" placeholder="e.g. Mauritius"></div>' +
+  '        <div class="field"><label>Serial Prefix *</label>' +
+  '          <input type="text" id="newCountryPrefix" placeholder="e.g. MAU" maxlength="5" style="text-transform:uppercase">' +
+  '          <div class="hint">Serials for this country will look like <strong id="prefixPreview">PFX-0001</strong>.</div></div>' +
+  '        <div class="field"><label>Currency *</label>' +
+  '          <input type="text" id="newCountryCurrency" placeholder="e.g. USD" maxlength="3" style="text-transform:uppercase"></div>' +
+  '      </div>' +
+  '      <div class="form-actions">' +
+  '        <button type="button" class="btn btn-outline" id="cancelNewCountry">Cancel</button>' +
+  '        <button type="button" class="btn btn-accent" id="saveNewCountry">Add Country</button>' +
+  '      </div>' +
+  '    </div>' +
+
   '    <div class="form-actions">' +
   '      <a href="customers.html" class="btn btn-outline">Cancel</a>' +
   '      <button type="submit" class="btn btn-primary" id="submitBtn">' + (isEdit ? 'Save Changes' : 'Save Customer') + '</button>' +
@@ -576,6 +658,75 @@ mainEl.innerHTML =
 // Populate status dropdown
 const statusSelect = document.getElementById('status');
 statusSelect.innerHTML = STATUS_OPTIONS.map(s => '<option value="' + s + '">' + s + '</option>').join('');
+
+/* ---------- Country dropdown + add-new-country panel ---------- */
+
+function populateCountrySelect(selectedName) {
+  const sel = document.getElementById('country');
+  const countries = CountryConfig.getAll();
+  sel.innerHTML = countries.map(function (c) {
+    return '<option value="' + escapeHtml(c.name) + '">' + escapeHtml(c.name) + ' (' + c.prefix + ' \u00b7 ' + c.currency + ')</option>';
+  }).join('') + '<option value="__add_new__">+ Add New Country\u2026</option>';
+  if (selectedName && countries.some(c => c.name === selectedName)) sel.value = selectedName;
+  updateCountryHint();
+}
+
+function updateCountryHint() {
+  const sel = document.getElementById('country');
+  const hint = document.getElementById('countryHint');
+  const cfg = CountryConfig.find(sel.value);
+  if (cfg) {
+    hint.textContent = 'New customers here get serial numbers like ' + cfg.prefix + '-0001, in ' + cfg.currency + '.';
+    document.getElementById('expectedCurrencyLabel').textContent = cfg.currency;
+    document.getElementById('currentCurrencyLabel').textContent = cfg.currency;
+  } else {
+    hint.textContent = '';
+  }
+}
+
+document.getElementById('country').addEventListener('change', function () {
+  if (this.value === '__add_new__') {
+    document.getElementById('newCountryPanel').style.display = 'block';
+    document.getElementById('newCountryName').focus();
+  } else {
+    document.getElementById('newCountryPanel').style.display = 'none';
+    updateCountryHint();
+  }
+});
+
+document.getElementById('newCountryPrefix').addEventListener('input', function () {
+  this.value = this.value.toUpperCase();
+  document.getElementById('prefixPreview').textContent = (this.value || 'PFX') + '-0001';
+});
+document.getElementById('newCountryCurrency').addEventListener('input', function () {
+  this.value = this.value.toUpperCase();
+});
+
+document.getElementById('cancelNewCountry').addEventListener('click', function () {
+  document.getElementById('newCountryPanel').style.display = 'none';
+  document.getElementById('country').selectedIndex = 0;
+  updateCountryHint();
+});
+
+document.getElementById('saveNewCountry').addEventListener('click', function () {
+  try {
+    const entry = CountryConfig.add({
+      name: document.getElementById('newCountryName').value,
+      prefix: document.getElementById('newCountryPrefix').value,
+      currency: document.getElementById('newCountryCurrency').value
+    });
+    populateCountrySelect(entry.name);
+    document.getElementById('newCountryPanel').style.display = 'none';
+    document.getElementById('newCountryName').value = '';
+    document.getElementById('newCountryPrefix').value = '';
+    document.getElementById('newCountryCurrency').value = '';
+    showToast('Added ' + entry.name + ' (' + entry.prefix + ', ' + entry.currency + ').', 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+});
+
+populateCountrySelect();
 
 const fields = ['companyName', 'contactPerson', 'country', 'nationality', 'industry', 'status', 'email', 'contactNumber', 'expectedSalesVolume', 'currentSalesVolume'];
 const required = ['companyName', 'country', 'industry'];
@@ -600,8 +751,8 @@ function validate() {
 
   required.forEach(function (f) {
     const val = document.getElementById(f).value.trim();
-    if (!val) {
-      setError(f, 'This field is required.');
+    if (!val || (f === 'country' && val === '__add_new__')) {
+      setError(f, f === 'country' ? 'Please select a country, or add one first.' : 'This field is required.');
       valid = false;
     }
   });
@@ -640,7 +791,14 @@ async function prefillIfEditing() {
     }
     document.getElementById('companyName').value = record.companyName || '';
     document.getElementById('contactPerson').value = record.contactPerson || '';
-    document.getElementById('country').value = record.country || '';
+    populateCountrySelect(record.country);
+    if (record.country && !CountryConfig.find(record.country)) {
+      // Legacy or unrecognized country value — keep it selectable so editing doesn't wipe it out.
+      const sel = document.getElementById('country');
+      sel.insertAdjacentHTML('afterbegin', '<option value="' + escapeHtml(record.country) + '">' + escapeHtml(record.country) + ' (unrecognized)</option>');
+      sel.value = record.country;
+    }
+    updateCountryHint();
     document.getElementById('nationality').value = record.nationality || '';
     document.getElementById('industry').value = record.industry || '';
     document.getElementById('status').value = record.status || 'New Lead';
@@ -660,15 +818,19 @@ document.getElementById('customerForm').addEventListener('submit', async functio
     return;
   }
 
+  const countryName = document.getElementById('country').value.trim();
+  const countryCfg = CountryConfig.find(countryName);
+
   const data = {
     companyName: document.getElementById('companyName').value.trim(),
     contactPerson: document.getElementById('contactPerson').value.trim(),
-    country: document.getElementById('country').value.trim(),
+    country: countryName,
     nationality: document.getElementById('nationality').value.trim(),
     industry: document.getElementById('industry').value.trim(),
     status: document.getElementById('status').value,
     email: document.getElementById('email').value.trim(),
     contactNumber: document.getElementById('contactNumber').value.trim(),
+    currency: countryCfg ? countryCfg.currency : 'USD',
     expectedSalesVolume: document.getElementById('expectedSalesVolume').value || 0,
     currentSalesVolume: document.getElementById('currentSalesVolume').value || 0
   };
@@ -683,6 +845,8 @@ document.getElementById('customerForm').addEventListener('submit', async functio
       await Api.updateCustomer(data);
       showToast('Customer updated successfully.', 'success');
     } else {
+      const existing = await CustomerStore.load();
+      data.serialNo = nextSerialNo(existing, countryCfg ? countryCfg.prefix : 'CUS');
       await Api.addCustomer(data);
       showToast('Customer saved successfully.', 'success');
     }
