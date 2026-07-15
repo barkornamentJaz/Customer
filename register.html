@@ -455,38 +455,59 @@ const CountryConfig = {
 
 /* ---------- Responsible-person (staff) configuration ----------
    Simple team-member list used for the "Responsible Person" dropdown.
-   NOTE: like custom countries, this list lives in this browser's
-   localStorage — per-device for now. */
+   Synced through the Apps Script "Staff" sheet (doGet ?action=staff,
+   doPost addStaff/deleteStaff) so a name added on one browser/device
+   shows up on every other one. localStorage is kept only as an offline
+   fallback cache — it is never the source of truth. */
 
 const StaffConfig = {
-  _key: 'bo_staff_list',
-  _list() {
+  _cacheKey: 'bo_staff_list', // offline fallback only
+  _remote: null,
+  _readyPromise: null,
+
+  async refresh() {
     try {
-      const raw = localStorage.getItem(this._key);
-      return raw ? JSON.parse(raw) : [];
-    } catch (e) { return []; }
+      const remote = await Api.getStaff();
+      this._remote = remote;
+      try { localStorage.setItem(this._cacheKey, JSON.stringify(remote)); } catch (e) { /* ignore quota errors */ }
+    } catch (err) {
+      if (this._remote === null) {
+        try {
+          const raw = localStorage.getItem(this._cacheKey);
+          this._remote = raw ? JSON.parse(raw) : [];
+        } catch (e) { this._remote = []; }
+      }
+      showToast('Could not sync team members from server — using last known list.', 'error');
+    }
+    return this.getAll();
   },
+
+  ensureLoaded() {
+    if (!this._readyPromise) this._readyPromise = this.refresh();
+    return this._readyPromise;
+  },
+
   getAll() {
-    return this._list().slice().sort(function (a, b) { return a.localeCompare(b); });
+    return (this._remote || []).slice().sort(function (a, b) { return a.localeCompare(b); });
   },
-  add(name) {
+  async add(name) {
     name = (name || '').trim();
     if (!name) throw new Error('Please enter a name.');
-    const list = this._list();
-    if (list.some(function (n) { return n.toLowerCase() === name.toLowerCase(); })) {
+    const existing = this.getAll();
+    if (existing.some(function (n) { return n.toLowerCase() === name.toLowerCase(); })) {
       throw new Error('That person is already on the list.');
     }
-    list.push(name);
-    localStorage.setItem(this._key, JSON.stringify(list));
+    await Api.addStaff(name); // writes to the shared Staff sheet
+    await this.refresh();
     return name;
   },
-  remove(name) {
+  async remove(name) {
     const key = String(name || '').toLowerCase();
-    const list = this._list();
-    const idx = list.findIndex(function (n) { return n.toLowerCase() === key; });
-    if (idx === -1) throw new Error('That person was not found — they may have already been removed.');
-    list.splice(idx, 1);
-    localStorage.setItem(this._key, JSON.stringify(list));
+    const existing = this.getAll();
+    const match = existing.find(function (n) { return n.toLowerCase() === key; });
+    if (!match) throw new Error('That person was not found — they may have already been removed.');
+    await Api.deleteStaff(match); // removes from the shared Staff sheet
+    await this.refresh();
   }
 };
 
@@ -622,6 +643,24 @@ const Api = {
 
   async deleteCountry(name) {
     return this._post({ action: 'deleteCountry', name: name });
+  },
+
+  async getStaff() {
+    if (!API_URL || API_URL.indexOf('PASTE_YOUR') === 0) {
+      throw new Error('API_URL is not configured. Edit js/config.js with your Apps Script deployment URL.');
+    }
+    const res = await fetch(API_URL + '?action=staff', { method: 'GET' });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Failed to load team members');
+    return json.data;
+  },
+
+  async addStaff(name) {
+    return this._post({ action: 'addStaff', data: { name: name } });
+  },
+
+  async deleteStaff(name) {
+    return this._post({ action: 'deleteStaff', name: name });
   },
 
   async _post(body) {
@@ -1002,19 +1041,23 @@ document.getElementById('cancelNewStaff').addEventListener('click', function () 
   document.getElementById('responsiblePerson').value = '';
 });
 
-document.getElementById('saveNewStaff').addEventListener('click', function () {
+document.getElementById('saveNewStaff').addEventListener('click', async function () {
+  const btn = document.getElementById('saveNewStaff');
+  btn.disabled = true;
   try {
-    const name = StaffConfig.add(document.getElementById('newStaffName').value);
+    const name = await StaffConfig.add(document.getElementById('newStaffName').value);
     populateStaffSelect(name);
     document.getElementById('newStaffPanel').style.display = 'none';
     document.getElementById('newStaffName').value = '';
-    showToast('Added ' + name + ' to the team list.', 'success');
+    showToast('Added ' + name + ' to the team list for everyone.', 'success');
   } catch (err) {
     showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
   }
 });
 
-populateStaffSelect();
+StaffConfig.ensureLoaded().then(function () { populateStaffSelect(); });
 
 function openManageStaffModal() {
   const backdrop = document.createElement('div');
@@ -1043,17 +1086,19 @@ function openManageStaffModal() {
 
   function attachRemoveHandlers() {
     backdrop.querySelectorAll('[data-remove-staff]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
+      btn.addEventListener('click', async function () {
         const name = btn.getAttribute('data-remove-staff');
         if (!confirm('Remove "' + name + '" from the team list?')) return;
+        btn.disabled = true;
         try {
-          StaffConfig.remove(name);
+          await StaffConfig.remove(name);
           document.getElementById('manageStaffList').innerHTML = rowsHtml();
           attachRemoveHandlers();
           populateStaffSelect();
-          showToast('Removed ' + name + '.', 'success');
+          showToast('Removed ' + name + ' for everyone.', 'success');
         } catch (err) {
           showToast(err.message, 'error');
+          btn.disabled = false;
         }
       });
     });
@@ -1127,6 +1172,7 @@ async function prefillIfEditing() {
   if (!isEdit) return;
   try {
     await CountryConfig.ensureLoaded();
+    await StaffConfig.ensureLoaded();
     const customers = await CustomerStore.load();
     const record = customers.find(c => c.serialNo === editSerial);
     if (!record) {
