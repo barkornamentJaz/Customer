@@ -223,8 +223,16 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; }
 /* ---------- Table ---------- */
 .table-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 18px; }
 .search-box { position: relative; flex: 1; min-width: 220px; }
-.search-box svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--muted); }
-.search-box input { width: 100%; padding: 10px 12px 10px 36px; border: 1px solid var(--border); border-radius: 8px; }
+.search-box svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--muted); pointer-events: none; }
+.search-box input { width: 100%; padding: 10px 34px 10px 36px; border: 1px solid var(--border); border-radius: 8px; }
+.search-clear {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 24px; height: 24px; border: none; background: none; cursor: pointer;
+  color: var(--muted); border-radius: 50%; display: none; align-items: center; justify-content: center;
+}
+.search-clear:hover { background: var(--canvas); color: var(--text); }
+.search-clear.show { display: flex; }
+.search-clear svg { width: 14px; height: 14px; }
 .table-toolbar select { padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
 
 .table-wrap { position: relative; overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); background: #fff; }
@@ -652,12 +660,16 @@ mainEl.innerHTML =
   '    <div class="search-box">' +
   '      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>' +
   '      <input type="text" id="searchInput" placeholder="Search by name, company, or email…">' +
+  '      <button type="button" class="search-clear" id="searchClearBtn" title="Clear search" aria-label="Clear search">' +
+  '        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>' +
+  '      </button>' +
   '    </div>' +
   '    <select id="filterCountry"><option value="">All Countries</option></select>' +
   '    <select id="filterIndustry"><option value="">All Industries</option></select>' +
   '    <select id="filterStatus"><option value="">All Statuses</option></select>' +
   '    <select id="filterSource"><option value="">All Sources</option></select>' +
   '    <select id="filterResponsible"><option value="">All Responsible Persons</option></select>' +
+  '    <button type="button" class="btn btn-outline btn-sm" id="clearFiltersBtn">Clear Filters</button>' +
   '  </div>' +
   '  <div class="table-wrap">' +
   '    <table class="data-table">' +
@@ -700,20 +712,26 @@ function populateFilterOptions() {
 }
 
 function applyFilters() {
-  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const searchInput = document.getElementById('searchInput');
+  const q = searchInput.value.trim().toLowerCase();
   const country = document.getElementById('filterCountry').value;
   const industry = document.getElementById('filterIndustry').value;
   const status = document.getElementById('filterStatus').value;
   const source = document.getElementById('filterSource').value;
   const responsible = document.getElementById('filterResponsible').value;
 
+  document.getElementById('searchClearBtn').classList.toggle('show', q.length > 0);
+
+  // Split into words so word order/extra spacing doesn't prevent a match
+  // (e.g. "Hilton Canopy" still finds "Canopy by Hilton Seychelles").
+  const qWords = q.split(/\s+/).filter(Boolean);
+
   filtered = allCustomers.filter(function (c) {
-    const matchesQ = !q ||
-      (c.companyName || '').toLowerCase().includes(q) ||
-      (c.customerName || '').toLowerCase().includes(q) ||
-      (c.contactPerson || '').toLowerCase().includes(q) ||
-      (c.email || '').toLowerCase().includes(q) ||
-      (c.serialNo || '').toLowerCase().includes(q);
+    const haystack = [
+      c.companyName, c.customerName, c.contactPerson, c.contactPersonPosition,
+      c.email, c.serialNo, c.country, c.industry, c.source, c.responsiblePerson, c.notes
+    ].filter(Boolean).join(' ').toLowerCase();
+    const matchesQ = qWords.length === 0 || qWords.every(function (w) { return haystack.includes(w); });
     const matchesCountry = !country || c.country === country;
     const matchesIndustry = !industry || c.industry === industry;
     const matchesStatus = !status || c.status === status;
@@ -723,6 +741,16 @@ function applyFilters() {
   });
 
   renderTable();
+}
+
+function clearAllFilters() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('filterCountry').value = '';
+  document.getElementById('filterIndustry').value = '';
+  document.getElementById('filterStatus').value = '';
+  document.getElementById('filterSource').value = '';
+  document.getElementById('filterResponsible').value = '';
+  applyFilters();
 }
 
 function renderTable() {
@@ -916,6 +944,13 @@ function generatePrintReport() {
 }
 
 document.getElementById('searchInput').addEventListener('input', applyFilters);
+document.getElementById('searchClearBtn').addEventListener('click', function () {
+  const input = document.getElementById('searchInput');
+  input.value = '';
+  applyFilters();
+  input.focus();
+});
+document.getElementById('clearFiltersBtn').addEventListener('click', clearAllFilters);
 document.getElementById('filterCountry').addEventListener('change', applyFilters);
 document.getElementById('filterIndustry').addEventListener('change', applyFilters);
 document.getElementById('filterStatus').addEventListener('change', applyFilters);
