@@ -6,6 +6,7 @@
 <title>Add Customer · Bark Ornament CMS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="logo.png">
 <style>
 /* ============================================================
    Bark Ornament — Customer Management System
@@ -69,15 +70,15 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; }
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 .brand-mark {
-  width: 38px; height: 38px;
-  background: linear-gradient(135deg, var(--steel), var(--ink));
-  border-radius: 9px;
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  overflow: hidden;
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-head);
-  font-weight: 700;
-  color: #fff;
+  background: #fff;
   flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.15);
 }
+.brand-mark img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .brand-name { font-family: var(--font-head); font-weight: 600; font-size: 15px; color: #fff; }
 .brand-sub { font-size: 11.5px; color: #9BA9C4; margin-top: 2px; }
 
@@ -426,6 +427,43 @@ const CountryConfig = {
   }
 };
 
+/* ---------- Responsible-person (staff) configuration ----------
+   Simple team-member list used for the "Responsible Person" dropdown.
+   NOTE: like custom countries, this list lives in this browser's
+   localStorage — per-device for now. */
+
+const StaffConfig = {
+  _key: 'bo_staff_list',
+  _list() {
+    try {
+      const raw = localStorage.getItem(this._key);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  },
+  getAll() {
+    return this._list().slice().sort(function (a, b) { return a.localeCompare(b); });
+  },
+  add(name) {
+    name = (name || '').trim();
+    if (!name) throw new Error('Please enter a name.');
+    const list = this._list();
+    if (list.some(function (n) { return n.toLowerCase() === name.toLowerCase(); })) {
+      throw new Error('That person is already on the list.');
+    }
+    list.push(name);
+    localStorage.setItem(this._key, JSON.stringify(list));
+    return name;
+  },
+  remove(name) {
+    const key = String(name || '').toLowerCase();
+    const list = this._list();
+    const idx = list.findIndex(function (n) { return n.toLowerCase() === key; });
+    if (idx === -1) throw new Error('That person was not found — they may have already been removed.');
+    list.splice(idx, 1);
+    localStorage.setItem(this._key, JSON.stringify(list));
+  }
+};
+
 // Given the current customer list and a country's prefix, work out the next
 // serial number in sequence, e.g. existing MAL-0001, MAL-0002 -> MAL-0003.
 function nextSerialNo(customers, prefix) {
@@ -471,7 +509,7 @@ function renderShell(activePage) {
   shell.innerHTML =
     '<aside class="sidebar">' +
     '  <div class="brand">' +
-    '    <div class="brand-mark">BO</div>' +
+    '    <div class="brand-mark"><img src="logo.png" alt="Bark Ornament logo"></div>' +
     '    <div class="brand-text">' +
     '      <div class="brand-name">Bark Ornament</div>' +
     '      <div class="brand-sub">Customer Management</div>' +
@@ -617,13 +655,22 @@ mainEl.innerHTML =
   '        <input type="text" id="serialNo" readonly style="background:var(--canvas);color:var(--muted);font-weight:600;">' +
   '        <div class="hint" id="serialNoHint"></div></div>' +
 
-  '      <div class="field"><label>Company / Customer Name *</label>' +
+  '      <div class="field"><label>Company Name *</label>' +
   '        <input type="text" id="companyName">' +
   '        <div class="error-msg" data-for="companyName"></div></div>' +
+
+  '      <div class="field"><label>Customer Name</label>' +
+  '        <input type="text" id="customerName" placeholder="If different from the company">' +
+  '        <div class="hint">The individual, if buying separately from the company.</div>' +
+  '        <div class="error-msg" data-for="customerName"></div></div>' +
 
   '      <div class="field"><label>Contact Person</label>' +
   '        <input type="text" id="contactPerson">' +
   '        <div class="error-msg" data-for="contactPerson"></div></div>' +
+
+  '      <div class="field"><label>Contact Person Position</label>' +
+  '        <input type="text" id="contactPersonPosition" placeholder="e.g. Purchasing Manager">' +
+  '        <div class="error-msg" data-for="contactPersonPosition"></div></div>' +
 
   '      <div class="field"><label>Country *</label>' +
   '        <div style="display:flex;gap:8px;align-items:center;">' +
@@ -670,6 +717,30 @@ mainEl.innerHTML =
   '        <input type="number" id="currentSalesVolume" min="0" step="0.01">' +
   '        <div class="error-msg" data-for="currentSalesVolume"></div></div>' +
 
+  '      <div class="field"><label>Responsible Person</label>' +
+  '        <div style="display:flex;gap:8px;align-items:center;">' +
+  '          <select id="responsiblePerson" style="flex:1;"></select>' +
+  '          <button type="button" class="btn btn-outline btn-sm" id="manageStaffBtn" style="flex-shrink:0;">Manage</button>' +
+  '        </div>' +
+  '        <div class="hint">Who on our team owns this customer?</div>' +
+  '        <div class="error-msg" data-for="responsiblePerson"></div></div>' +
+
+  '      <div class="field" style="grid-column: 1 / -1;"><label>Notes</label>' +
+  '        <textarea id="notes" rows="4" placeholder="Anything worth remembering about this customer…" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;"></textarea>' +
+  '        <div class="error-msg" data-for="notes"></div></div>' +
+
+  '    </div>' +
+
+  '    <div class="card" id="newStaffPanel" style="display:none;margin-top:18px;background:var(--canvas);border-style:dashed;">' +
+  '      <h4 style="font-size:14px;margin-bottom:14px;">Add a New Team Member</h4>' +
+  '      <div class="form-grid">' +
+  '        <div class="field"><label>Name *</label>' +
+  '          <input type="text" id="newStaffName" placeholder="e.g. Nimal Perera"></div>' +
+  '      </div>' +
+  '      <div class="form-actions">' +
+  '        <button type="button" class="btn btn-outline" id="cancelNewStaff">Cancel</button>' +
+  '        <button type="button" class="btn btn-accent" id="saveNewStaff">Add Person</button>' +
+  '      </div>' +
   '    </div>' +
 
   '    <div class="card" id="newCountryPanel" style="display:none;margin-top:18px;background:var(--canvas);border-style:dashed;">' +
@@ -861,7 +932,96 @@ function openManageCountriesModal() {
 
 document.getElementById('manageCountriesBtn').addEventListener('click', openManageCountriesModal);
 
-const fields = ['companyName', 'contactPerson', 'country', 'nationality', 'industry', 'status', 'email', 'contactNumber', 'source', 'sourceOther', 'expectedSalesVolume', 'currentSalesVolume'];
+/* ---------- Responsible Person dropdown + add-new-staff panel ---------- */
+
+function populateStaffSelect(selectedName) {
+  const sel = document.getElementById('responsiblePerson');
+  const staff = StaffConfig.getAll();
+  sel.innerHTML = '<option value="">Unassigned</option>' +
+    staff.map(function (n) { return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>'; }).join('') +
+    '<option value="__add_new__">+ Add New Team Member\u2026</option>';
+  if (selectedName && staff.indexOf(selectedName) !== -1) sel.value = selectedName;
+}
+
+document.getElementById('responsiblePerson').addEventListener('change', function () {
+  if (this.value === '__add_new__') {
+    document.getElementById('newStaffPanel').style.display = 'block';
+    document.getElementById('newStaffName').focus();
+  } else {
+    document.getElementById('newStaffPanel').style.display = 'none';
+  }
+});
+
+document.getElementById('cancelNewStaff').addEventListener('click', function () {
+  document.getElementById('newStaffPanel').style.display = 'none';
+  document.getElementById('responsiblePerson').value = '';
+});
+
+document.getElementById('saveNewStaff').addEventListener('click', function () {
+  try {
+    const name = StaffConfig.add(document.getElementById('newStaffName').value);
+    populateStaffSelect(name);
+    document.getElementById('newStaffPanel').style.display = 'none';
+    document.getElementById('newStaffName').value = '';
+    showToast('Added ' + name + ' to the team list.', 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+});
+
+populateStaffSelect();
+
+function openManageStaffModal() {
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.id = 'manageStaffModal';
+
+  function rowsHtml() {
+    const staff = StaffConfig.getAll();
+    if (staff.length === 0) return '<p style="color:var(--muted);font-size:13.5px;">No team members added yet.</p>';
+    return staff.map(function (n) {
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 4px;border-bottom:1px solid var(--border);font-size:13.5px;">' +
+        '<div><strong>' + escapeHtml(n) + '</strong></div>' +
+        '<button type="button" class="btn btn-danger btn-sm" data-remove-staff="' + escapeHtml(n) + '">Remove</button>' +
+        '</div>';
+    }).join('');
+  }
+
+  backdrop.innerHTML =
+    '<div class="modal" style="max-width:420px;">' +
+    '  <h3>Manage Team Members</h3>' +
+    '  <p>Removing someone here only affects the dropdown for new selections — customers already assigned to them keep that record.</p>' +
+    '  <div id="manageStaffList" style="max-height:320px;overflow-y:auto;margin-bottom:18px;">' + rowsHtml() + '</div>' +
+    '  <div class="modal-actions"><button type="button" class="btn btn-outline" id="closeManageStaff">Close</button></div>' +
+    '</div>';
+  document.body.appendChild(backdrop);
+
+  function attachRemoveHandlers() {
+    backdrop.querySelectorAll('[data-remove-staff]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const name = btn.getAttribute('data-remove-staff');
+        if (!confirm('Remove "' + name + '" from the team list?')) return;
+        try {
+          StaffConfig.remove(name);
+          document.getElementById('manageStaffList').innerHTML = rowsHtml();
+          attachRemoveHandlers();
+          populateStaffSelect();
+          showToast('Removed ' + name + '.', 'success');
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      });
+    });
+  }
+  attachRemoveHandlers();
+
+  backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
+  document.getElementById('closeManageStaff').addEventListener('click', function () { backdrop.remove(); });
+}
+
+document.getElementById('manageStaffBtn').addEventListener('click', openManageStaffModal);
+
+const fields = ['companyName', 'customerName', 'contactPerson', 'contactPersonPosition', 'country', 'nationality', 'industry', 'status', 'email', 'contactNumber', 'source', 'sourceOther', 'expectedSalesVolume', 'currentSalesVolume', 'responsiblePerson', 'notes'];
 const required = ['companyName', 'country', 'industry', 'source'];
 
 function clearErrors() {
@@ -930,7 +1090,9 @@ async function prefillIfEditing() {
     document.getElementById('serialNo').value = record.serialNo || '';
     document.getElementById('serialNoHint').textContent = 'Serial numbers don\u2019t change when editing a customer.';
     document.getElementById('companyName').value = record.companyName || '';
+    document.getElementById('customerName').value = record.customerName || '';
     document.getElementById('contactPerson').value = record.contactPerson || '';
+    document.getElementById('contactPersonPosition').value = record.contactPersonPosition || '';
     populateCountrySelect(record.country);
     if (record.country && !CountryConfig.find(record.country)) {
       // Legacy or unrecognized country value — keep it selectable so editing doesn't wipe it out.
@@ -955,6 +1117,13 @@ async function prefillIfEditing() {
     }
     document.getElementById('expectedSalesVolume').value = record.expectedSalesVolume || '';
     document.getElementById('currentSalesVolume').value = record.currentSalesVolume || '';
+    populateStaffSelect(record.responsiblePerson);
+    if (record.responsiblePerson && StaffConfig.getAll().indexOf(record.responsiblePerson) === -1) {
+      const sel = document.getElementById('responsiblePerson');
+      sel.insertAdjacentHTML('afterbegin', '<option value="' + escapeHtml(record.responsiblePerson) + '">' + escapeHtml(record.responsiblePerson) + '</option>');
+      sel.value = record.responsiblePerson;
+    }
+    document.getElementById('notes').value = record.notes || '';
   } catch (err) {
     showToast('Error loading customer: ' + err.message, 'error');
   }
@@ -972,7 +1141,9 @@ document.getElementById('customerForm').addEventListener('submit', async functio
 
   const data = {
     companyName: document.getElementById('companyName').value.trim(),
+    customerName: document.getElementById('customerName').value.trim(),
     contactPerson: document.getElementById('contactPerson').value.trim(),
+    contactPersonPosition: document.getElementById('contactPersonPosition').value.trim(),
     country: countryName,
     nationality: document.getElementById('nationality').value.trim(),
     industry: document.getElementById('industry').value.trim(),
@@ -984,7 +1155,11 @@ document.getElementById('customerForm').addEventListener('submit', async functio
       : document.getElementById('source').value,
     currency: countryCfg ? countryCfg.currency : 'USD',
     expectedSalesVolume: document.getElementById('expectedSalesVolume').value || 0,
-    currentSalesVolume: document.getElementById('currentSalesVolume').value || 0
+    currentSalesVolume: document.getElementById('currentSalesVolume').value || 0,
+    responsiblePerson: document.getElementById('responsiblePerson').value === '__add_new__'
+      ? ''
+      : document.getElementById('responsiblePerson').value,
+    notes: document.getElementById('notes').value.trim()
   };
 
   const submitBtn = document.getElementById('submitBtn');
