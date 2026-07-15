@@ -330,15 +330,14 @@ async function load() {
 
       '<div class="grid">' +
       row('Company Name', escapeHtml(c.companyName)) +
-      row('Customer Name', escapeHtml(c.customerName)) +
-      row('Contact Person', escapeHtml(c.contactPerson)) +
+      row('Contact Person', escapeHtml(c.customerName)) +
+      row('Contact No', escapeHtml(c.contactPerson)) +
       row('Contact Person Position', escapeHtml(c.contactPersonPosition)) +
       row('Country', escapeHtml(c.country)) +
       row('Nationality', escapeHtml(c.nationality)) +
       row('Industry', escapeHtml(c.industry)) +
       row('Status', '<span class="status-pill">' + escapeHtml(c.status) + '</span>') +
       row('Email Address', escapeHtml(c.email)) +
-      row('Contact Number', escapeHtml(c.contactNumber)) +
       row('Source', escapeHtml(c.source)) +
       row('Responsible Person', escapeHtml(c.responsiblePerson)) +
       '</div>' +
