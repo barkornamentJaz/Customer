@@ -6,6 +6,7 @@
 <title>Customer Detail · Bark Ornament CMS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="logo.png">
 <style>
   :root {
     --ink: #0F2A47; --steel: #2E6096; --border: #E3E7ED; --muted: #6B7280; --text: #1F2937;
@@ -15,6 +16,8 @@
   body { font-family: var(--font-body); color: var(--text); margin: 0; background: #F4F6F9; }
   .sheet { max-width: 780px; margin: 30px auto; background: #fff; padding: 48px; border-radius: 10px; box-shadow: 0 1px 2px rgba(20,33,61,.06), 0 4px 16px rgba(20,33,61,.06); }
   .doc-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid var(--ink); padding-bottom: 20px; margin-bottom: 28px; }
+  .doc-header .company-block { display: flex; align-items: center; gap: 12px; }
+  .doc-header .company-logo { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
   .doc-header .company { font-family: var(--font-head); font-weight: 700; font-size: 20px; color: var(--ink); }
   .doc-header .address { font-size: 12px; color: var(--muted); margin-top: 4px; }
   .doc-title { text-align: right; }
@@ -172,7 +175,7 @@ function renderShell(activePage) {
   shell.innerHTML =
     '<aside class="sidebar">' +
     '  <div class="brand">' +
-    '    <div class="brand-mark">BO</div>' +
+    '    <div class="brand-mark"><img src="logo.png" alt="Bark Ornament logo"></div>' +
     '    <div class="brand-text">' +
     '      <div class="brand-name">Bark Ornament</div>' +
     '      <div class="brand-sub">Customer Management</div>' +
@@ -321,13 +324,15 @@ async function load() {
 
     sheetEl.innerHTML =
       '<div class="doc-header">' +
-      '  <div><div class="company">' + escapeHtml(COMPANY.name) + '</div><div class="address">' + escapeHtml(COMPANY.address) + '</div></div>' +
+      '  <div class="company-block"><img class="company-logo" src="logo.png" alt="Bark Ornament logo"><div><div class="company">' + escapeHtml(COMPANY.name) + '</div><div class="address">' + escapeHtml(COMPANY.address) + '</div></div></div>' +
       '  <div class="doc-title"><h1>Customer Profile</h1><div class="serial">' + escapeHtml(c.serialNo) + '</div></div>' +
       '</div>' +
 
       '<div class="grid">' +
-      row('Company / Customer Name', escapeHtml(c.companyName)) +
+      row('Company Name', escapeHtml(c.companyName)) +
+      row('Customer Name', escapeHtml(c.customerName)) +
       row('Contact Person', escapeHtml(c.contactPerson)) +
+      row('Contact Person Position', escapeHtml(c.contactPersonPosition)) +
       row('Country', escapeHtml(c.country)) +
       row('Nationality', escapeHtml(c.nationality)) +
       row('Industry', escapeHtml(c.industry)) +
@@ -335,6 +340,7 @@ async function load() {
       row('Email Address', escapeHtml(c.email)) +
       row('Contact Number', escapeHtml(c.contactNumber)) +
       row('Source', escapeHtml(c.source)) +
+      row('Responsible Person', escapeHtml(c.responsiblePerson)) +
       '</div>' +
 
       '<div class="section-title">Sales Information</div>' +
@@ -343,6 +349,8 @@ async function load() {
       row('Current Sales Volume', formatCurrency(c.currentSalesVolume, c.currency)) +
       row('Created Date', formatDate(c.createdDate)) +
       '</div>' +
+
+      (c.notes ? '<div class="section-title">Notes</div><div class="row" style="border-bottom:none;"><div class="value" style="font-weight:400;white-space:pre-wrap;">' + escapeHtml(c.notes) + '</div></div>' : '') +
 
       '<div class="footer-note">Generated on ' + formatDate(new Date()) + ' — ' + escapeHtml(COMPANY.name) + '</div>';
   } catch (err) {
