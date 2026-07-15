@@ -103,6 +103,16 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; }
   border-top: 1px solid rgba(255,255,255,0.08);
   line-height: 1.5;
 }
+.session-info {
+  font-size: 12px;
+  color: #C7D0E0;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.session-info strong { color: #fff; font-weight: 600; word-break: break-all; }
+.session-info a { color: #8FB6E0; }
+.session-info a:hover { color: #fff; }
 
 .mobile-topbar {
   display: none;
@@ -484,16 +494,23 @@ function nextSerialNo(customers, prefix) {
 /* ---------- Navigation shell ---------- */
 
 function renderShell(activePage) {
+  const session = Session.get();
+  const isAdmin = !!session && session.role === 'admin';
+
   const nav = [
     { key: 'dashboard', label: 'Dashboard', href: 'index.html', icon: 'grid' },
     { key: 'register', label: 'Add Customer', href: 'register.html', icon: 'plus' },
     { key: 'customers', label: 'Customers', href: 'customers.html', icon: 'list' }
   ];
+  if (isAdmin) {
+    nav.push({ key: 'team', label: 'Team Access', href: 'login.html', icon: 'team' });
+  }
 
   const icons = {
     grid: '<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
-    list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>'
+    list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    team: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>'
   };
 
   const navHtml = nav.map(function (item) {
@@ -514,7 +531,12 @@ function renderShell(activePage) {
     '    </div>' +
     '  </div>' +
     '  <nav class="nav">' + navHtml + '</nav>' +
-    '  <div class="sidebar-footer">' + COMPANY.name + '<br>' + COMPANY.address + '</div>' +
+    '  <div class="sidebar-footer">' +
+    (session ?
+      '<div class="session-info"><strong>' + escapeHtml(session.email) + '</strong><br>' +
+      (isAdmin ? 'Admin' : 'Team member') + ' &middot; <a href="#" id="logoutLink">Log out</a></div>' : '') +
+    COMPANY.name + '<br>' + COMPANY.address +
+    '</div>' +
     '</aside>' +
     '<div class="mobile-topbar">' +
     '  <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">' +
@@ -523,6 +545,14 @@ function renderShell(activePage) {
     '  <span class="brand-name">Bark Ornament</span>' +
     '</div>' +
     '<main class="main" id="main-content"></main>';
+
+  const logoutLink = document.getElementById('logoutLink');
+  if (logoutLink) {
+    logoutLink.addEventListener('click', function (e) {
+      e.preventDefault();
+      Session.logout();
+    });
+  }
 
   const toggle = document.getElementById('menuToggle');
   if (toggle) {
@@ -553,6 +583,43 @@ function showToast(message, type) {
   }, 3200);
 }
 
+/* ---------- Session / auth ----------
+   Login is required to use this app. A logged-in session (email, role,
+   signed token, expiry) is cached in localStorage so people stay signed
+   in across visits until the token expires (server-side, default 12h)
+   or they log out. The role check here only controls what UI is shown —
+   the real security boundary is the token check the backend does on
+   every add/update/delete request. */
+const Session = {
+  _key: 'bo_session',
+  get() {
+    try {
+      const raw = localStorage.getItem(this._key);
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      if (!s || !s.token || !s.exp || Date.now() > s.exp) { this.clear(); return null; }
+      return s;
+    } catch (e) { return null; }
+  },
+  set(s) { try { localStorage.setItem(this._key, JSON.stringify(s)); } catch (e) { /* ignore */ } },
+  clear() { try { localStorage.removeItem(this._key); } catch (e) { /* ignore */ } },
+  isAdmin() { const s = this.get(); return !!s && s.role === 'admin'; },
+  /** Redirects to login.html if there's no valid session; returns the session otherwise. */
+  requireLogin() {
+    const s = this.get();
+    if (!s) {
+      const here = encodeURIComponent(location.pathname.split('/').pop() + location.search);
+      window.location.href = 'login.html?redirect=' + here;
+      return null;
+    }
+    return s;
+  },
+  logout() {
+    this.clear();
+    window.location.href = 'login.html';
+  }
+};
+
 /* ---------- API layer ---------- */
 
 const Api = {
@@ -560,9 +627,11 @@ const Api = {
     if (!API_URL || API_URL.indexOf('PASTE_YOUR') === 0) {
       throw new Error('API_URL is not configured. Edit js/config.js with your Apps Script deployment URL.');
     }
-    const res = await fetch(API_URL, { method: 'GET' });
+    const s = Session.get();
+    const url = API_URL + '?token=' + encodeURIComponent(s ? s.token : '');
+    const res = await fetch(url, { method: 'GET' });
     const json = await res.json();
-    if (!json.success) throw new Error(json.error || 'Failed to load customers');
+    if (!json.success) { handleAuthError(json.error); throw new Error(json.error || 'Failed to load customers'); }
     return json.data;
   },
 
@@ -579,16 +648,29 @@ const Api = {
   },
 
   async _post(body) {
+    const s = Session.get();
+    body.token = s ? s.token : '';
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids CORS preflight on Apps Script
       body: JSON.stringify(body)
     });
     const json = await res.json();
-    if (!json.success) throw new Error(json.error || 'Request failed');
+    if (!json.success) { handleAuthError(json.error); throw new Error(json.error || 'Request failed'); }
     return json.data;
   }
 };
+
+/** If the backend rejected a call because the session is invalid/expired or
+ *  the action needed admin rights, act accordingly instead of just showing
+ *  a raw error string. */
+function handleAuthError(errorCode) {
+  if (errorCode === 'AUTH_REQUIRED') {
+    Session.clear();
+    showToast('Your session has expired — please log in again.', 'error');
+    setTimeout(function () { window.location.href = 'login.html'; }, 1200);
+  }
+}
 
 /* ---------- Formatting helpers ---------- */
 
@@ -633,6 +715,9 @@ const CustomerStore = {
 
 </script>
 <script>
+const currentSession = Session.requireLogin();
+if (!currentSession) { throw new Error('Redirecting to login…'); }
+
 renderShell('customers');
 
 const mainEl = document.getElementById('main-content');
@@ -779,9 +864,9 @@ function renderTable() {
       '<td>' + formatDate(c.createdDate) + '</td>' +
       '<td>' + notesPreview(c.notes) + '</td>' +
       '<td><div class="row-actions">' +
-      '  <a class="btn btn-outline btn-sm" href="register.html?edit=' + encodeURIComponent(c.serialNo) + '" title="Edit">Edit</a>' +
+      (currentSession.role === 'admin' ? '  <a class="btn btn-outline btn-sm" href="register.html?edit=' + encodeURIComponent(c.serialNo) + '" title="Edit">Edit</a>' : '') +
       '  <a class="btn btn-outline btn-sm" href="customer-detail.html?id=' + encodeURIComponent(c.serialNo) + '" title="Print">Print</a>' +
-      '  <button class="btn btn-danger btn-sm" data-delete="' + escapeHtml(c.serialNo) + '" title="Delete">Delete</button>' +
+      (currentSession.role === 'admin' ? '  <button class="btn btn-danger btn-sm" data-delete="' + escapeHtml(c.serialNo) + '" title="Delete">Delete</button>' : '') +
       '</div></td>' +
       '</tr>';
   }).join('');
