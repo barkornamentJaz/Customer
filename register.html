@@ -659,13 +659,12 @@ mainEl.innerHTML =
   '        <input type="text" id="companyName">' +
   '        <div class="error-msg" data-for="companyName"></div></div>' +
 
-  '      <div class="field"><label>Customer Name</label>' +
-  '        <input type="text" id="customerName" placeholder="If different from the company">' +
-  '        <div class="hint">The individual, if buying separately from the company.</div>' +
+  '      <div class="field"><label>Contact Person</label>' +
+  '        <input type="text" id="customerName" placeholder="Name of the person to contact">' +
   '        <div class="error-msg" data-for="customerName"></div></div>' +
 
-  '      <div class="field"><label>Contact Person</label>' +
-  '        <input type="text" id="contactPerson">' +
+  '      <div class="field"><label>Contact No</label>' +
+  '        <input type="tel" id="contactPerson" placeholder="e.g. +94 77 123 4567">' +
   '        <div class="error-msg" data-for="contactPerson"></div></div>' +
 
   '      <div class="field"><label>Contact Person Position</label>' +
@@ -695,10 +694,6 @@ mainEl.innerHTML =
   '      <div class="field"><label>Email Address</label>' +
   '        <input type="email" id="email">' +
   '        <div class="error-msg" data-for="email"></div></div>' +
-
-  '      <div class="field"><label>Contact Number</label>' +
-  '        <input type="text" id="contactNumber">' +
-  '        <div class="error-msg" data-for="contactNumber"></div></div>' +
 
   '      <div class="field"><label>Source *</label>' +
   '        <select id="source"></select>' +
@@ -1021,7 +1016,7 @@ function openManageStaffModal() {
 
 document.getElementById('manageStaffBtn').addEventListener('click', openManageStaffModal);
 
-const fields = ['companyName', 'customerName', 'contactPerson', 'contactPersonPosition', 'country', 'nationality', 'industry', 'status', 'email', 'contactNumber', 'source', 'sourceOther', 'expectedSalesVolume', 'currentSalesVolume', 'responsiblePerson', 'notes'];
+const fields = ['companyName', 'customerName', 'contactPerson', 'contactPersonPosition', 'country', 'nationality', 'industry', 'status', 'email', 'source', 'sourceOther', 'expectedSalesVolume', 'currentSalesVolume', 'responsiblePerson', 'notes'];
 const required = ['companyName', 'country', 'industry', 'source'];
 
 function clearErrors() {
@@ -1061,9 +1056,9 @@ function validate() {
     valid = false;
   }
 
-  const phone = document.getElementById('contactNumber').value.trim();
+  const phone = document.getElementById('contactPerson').value.trim();
   if (phone && !/^[+\d][\d\s\-()]{5,}$/.test(phone)) {
-    setError('contactNumber', 'Enter a valid contact number.');
+    setError('contactPerson', 'Enter a valid contact number.');
     valid = false;
   }
 
@@ -1105,7 +1100,6 @@ async function prefillIfEditing() {
     document.getElementById('industry').value = record.industry || '';
     document.getElementById('status').value = record.status || 'New Lead';
     document.getElementById('email').value = record.email || '';
-    document.getElementById('contactNumber').value = record.contactNumber || '';
     const recordSource = record.source || '';
     if (recordSource && SOURCE_OPTIONS.indexOf(recordSource) !== -1 && recordSource !== 'Other') {
       sourceSelect.value = recordSource;
@@ -1149,7 +1143,6 @@ document.getElementById('customerForm').addEventListener('submit', async functio
     industry: document.getElementById('industry').value.trim(),
     status: document.getElementById('status').value,
     email: document.getElementById('email').value.trim(),
-    contactNumber: document.getElementById('contactNumber').value.trim(),
     source: document.getElementById('source').value === 'Other'
       ? document.getElementById('sourceOther').value.trim()
       : document.getElementById('source').value,
