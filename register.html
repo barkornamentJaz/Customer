@@ -369,10 +369,12 @@ const SOURCE_OPTIONS = [
 /* ---------- Country / currency / serial-prefix configuration ----------
    Each country has a serial-number prefix (e.g. MAL-0001) and a currency.
    Defaults cover the current business segments; more can be added from
-   the Add Customer form ("+ Add New Country") without touching code.
-   NOTE: custom countries are stored in this browser's localStorage, so
-   they are per-device for now — see chat notes on syncing this via the
-   Apps Script backend if the whole team needs to see new countries. */
+   the Add Customer form ("+ Add New Country").
+   Custom countries are synced through the Apps Script "Countries" sheet
+   (doGet ?action=countries, doPost addCountry/deleteCountry) so a country
+   added on one browser/device shows up on every other one. localStorage
+   is kept only as an offline fallback cache in case the backend can't be
+   reached — it is never the source of truth. */
 
 const DEFAULT_COUNTRIES = [
   { name: 'Maldives', prefix: 'MAL', currency: 'USD' },
@@ -381,12 +383,37 @@ const DEFAULT_COUNTRIES = [
 ];
 
 const CountryConfig = {
-  _key: 'bo_custom_countries',
-  _customList() {
+  _cacheKey: 'bo_custom_countries', // offline fallback only
+  _remote: null,       // last-known list fetched from the backend
+  _readyPromise: null,
+
+  /** Fetches the shared list from the backend; call once at startup (via ensureLoaded). */
+  async refresh() {
     try {
-      const raw = localStorage.getItem(this._key);
-      return raw ? JSON.parse(raw) : [];
-    } catch (e) { return []; }
+      const remote = await Api.getCountries();
+      this._remote = remote;
+      try { localStorage.setItem(this._cacheKey, JSON.stringify(remote)); } catch (e) { /* ignore quota errors */ }
+    } catch (err) {
+      // Backend unreachable — fall back to whatever we last saw on this browser.
+      if (this._remote === null) {
+        try {
+          const raw = localStorage.getItem(this._cacheKey);
+          this._remote = raw ? JSON.parse(raw) : [];
+        } catch (e) { this._remote = []; }
+      }
+      showToast('Could not sync countries from server — using last known list.', 'error');
+    }
+    return this.getAll();
+  },
+
+  /** Ensures the list has been loaded at least once; safe to call repeatedly. */
+  ensureLoaded() {
+    if (!this._readyPromise) this._readyPromise = this.refresh();
+    return this._readyPromise;
+  },
+
+  _customList() {
+    return this._remote || [];
   },
   getAll() {
     const map = {};
@@ -398,7 +425,7 @@ const CountryConfig = {
     const key = String(name || '').toLowerCase();
     return this.getAll().find(function (c) { return c.name.toLowerCase() === key; });
   },
-  add(entry) {
+  async add(entry) {
     const name = (entry.name || '').trim();
     const prefix = (entry.prefix || '').trim().toUpperCase();
     const currency = (entry.currency || '').trim().toUpperCase();
@@ -408,22 +435,21 @@ const CountryConfig = {
     const existing = this.getAll();
     if (existing.some(function (c) { return c.name.toLowerCase() === name.toLowerCase(); })) throw new Error('That country already exists.');
     if (existing.some(function (c) { return c.prefix.toLowerCase() === prefix.toLowerCase(); })) throw new Error('That serial prefix is already in use — pick a different one.');
-    const list = this._customList();
     const record = { name: name, prefix: prefix, currency: currency };
-    list.push(record);
-    localStorage.setItem(this._key, JSON.stringify(list));
+    await Api.addCountry(record); // writes to the shared Countries sheet
+    await this.refresh();
     return record;
   },
-  remove(name) {
+  async remove(name) {
     const key = String(name || '').toLowerCase();
     if (DEFAULT_COUNTRIES.some(function (c) { return c.name.toLowerCase() === key; })) {
       throw new Error('The built-in countries (Maldives, Seychelles, Local) can\u2019t be removed.');
     }
-    const list = this._customList();
-    const idx = list.findIndex(function (c) { return c.name.toLowerCase() === key; });
-    if (idx === -1) throw new Error('That country was not found — it may have already been removed.');
-    list.splice(idx, 1);
-    localStorage.setItem(this._key, JSON.stringify(list));
+    const existing = this._customList();
+    const match = existing.find(function (c) { return c.name.toLowerCase() === key; });
+    if (!match) throw new Error('That country was not found — it may have already been removed.');
+    await Api.deleteCountry(match.name); // removes from the shared Countries sheet
+    await this.refresh();
   }
 };
 
@@ -578,6 +604,24 @@ const Api = {
 
   async deleteCustomer(serialNo) {
     return this._post({ action: 'delete', serialNo: serialNo });
+  },
+
+  async getCountries() {
+    if (!API_URL || API_URL.indexOf('PASTE_YOUR') === 0) {
+      throw new Error('API_URL is not configured. Edit js/config.js with your Apps Script deployment URL.');
+    }
+    const res = await fetch(API_URL + '?action=countries', { method: 'GET' });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Failed to load countries');
+    return json.data;
+  },
+
+  async addCountry(data) {
+    return this._post({ action: 'addCountry', data: data });
+  },
+
+  async deleteCountry(name) {
+    return this._post({ action: 'deleteCountry', name: name });
   },
 
   async _post(body) {
@@ -837,9 +881,11 @@ document.getElementById('cancelNewCountry').addEventListener('click', function (
   updateCountryHint();
 });
 
-document.getElementById('saveNewCountry').addEventListener('click', function () {
+document.getElementById('saveNewCountry').addEventListener('click', async function () {
+  const btn = document.getElementById('saveNewCountry');
+  btn.disabled = true;
   try {
-    const entry = CountryConfig.add({
+    const entry = await CountryConfig.add({
       name: document.getElementById('newCountryName').value,
       prefix: document.getElementById('newCountryPrefix').value,
       currency: document.getElementById('newCountryCurrency').value
@@ -849,13 +895,15 @@ document.getElementById('saveNewCountry').addEventListener('click', function () 
     document.getElementById('newCountryName').value = '';
     document.getElementById('newCountryPrefix').value = '';
     document.getElementById('newCountryCurrency').value = '';
-    showToast('Added ' + entry.name + ' (' + entry.prefix + ', ' + entry.currency + ').', 'success');
+    showToast('Added ' + entry.name + ' (' + entry.prefix + ', ' + entry.currency + ') for everyone.', 'success');
   } catch (err) {
     showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
   }
 });
 
-populateCountrySelect();
+CountryConfig.ensureLoaded().then(function () { populateCountrySelect(); });
 
 /* ---------- Source dropdown ("Other" reveals free-text) ---------- */
 
@@ -904,17 +952,19 @@ function openManageCountriesModal() {
 
   function attachRemoveHandlers() {
     backdrop.querySelectorAll('[data-remove-country]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
+      btn.addEventListener('click', async function () {
         const name = btn.getAttribute('data-remove-country');
         if (!confirm('Remove "' + name + '" from the country list? Existing customers already saved under this country keep their records — this only stops it appearing for new entries.')) return;
+        btn.disabled = true;
         try {
-          CountryConfig.remove(name);
+          await CountryConfig.remove(name);
           document.getElementById('manageCountriesList').innerHTML = rowsHtml();
           attachRemoveHandlers();
           populateCountrySelect();
-          showToast('Removed ' + name + '.', 'success');
+          showToast('Removed ' + name + ' for everyone.', 'success');
         } catch (err) {
           showToast(err.message, 'error');
+          btn.disabled = false;
         }
       });
     });
@@ -1076,6 +1126,7 @@ function validate() {
 async function prefillIfEditing() {
   if (!isEdit) return;
   try {
+    await CountryConfig.ensureLoaded();
     const customers = await CustomerStore.load();
     const record = customers.find(c => c.serialNo === editSerial);
     if (!record) {
