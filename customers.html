@@ -6,6 +6,7 @@
 <title>Customers · Bark Ornament CMS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="logo.png">
 <style>
 /* ============================================================
    Bark Ornament — Customer Management System
@@ -69,15 +70,15 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; }
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 .brand-mark {
-  width: 38px; height: 38px;
-  background: linear-gradient(135deg, var(--steel), var(--ink));
-  border-radius: 9px;
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  overflow: hidden;
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-head);
-  font-weight: 700;
-  color: #fff;
+  background: #fff;
   flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.15);
 }
+.brand-mark img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .brand-name { font-family: var(--font-head); font-weight: 600; font-size: 15px; color: #fff; }
 .brand-sub { font-size: 11.5px; color: #9BA9C4; margin-top: 2px; }
 
@@ -339,6 +340,8 @@ table.data-table tbody tr:hover { background: #FAFBFD; }
   #printReport { display: block !important; }
 }
 #printReport .report-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid var(--ink); padding-bottom: 16px; margin-bottom: 18px; }
+#printReport .report-header .company-block { display: flex; align-items: center; gap: 12px; }
+#printReport .report-header .company-logo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
 #printReport .report-header .company { font-family: var(--font-head); font-weight: 700; font-size: 18px; color: var(--ink); }
 #printReport .report-header .address { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
 #printReport .report-title { text-align: right; }
@@ -495,7 +498,7 @@ function renderShell(activePage) {
   shell.innerHTML =
     '<aside class="sidebar">' +
     '  <div class="brand">' +
-    '    <div class="brand-mark">BO</div>' +
+    '    <div class="brand-mark"><img src="logo.png" alt="Bark Ornament logo"></div>' +
     '    <div class="brand-text">' +
     '      <div class="brand-name">Bark Ornament</div>' +
     '      <div class="brand-sub">Customer Management</div>' +
@@ -653,15 +656,16 @@ mainEl.innerHTML =
   '    <select id="filterIndustry"><option value="">All Industries</option></select>' +
   '    <select id="filterStatus"><option value="">All Statuses</option></select>' +
   '    <select id="filterSource"><option value="">All Sources</option></select>' +
+  '    <select id="filterResponsible"><option value="">All Responsible Persons</option></select>' +
   '  </div>' +
   '  <div class="table-wrap">' +
   '    <table class="data-table">' +
   '      <thead><tr>' +
-  '        <th>Serial No</th><th>Company</th><th>Contact Person</th><th>Country</th>' +
-  '        <th>Industry</th><th>Status</th><th>Source</th><th>Email</th><th>Phone</th>' +
+  '        <th>Serial No</th><th>Company</th><th>Customer Name</th><th>Contact Person</th><th>Position</th><th>Country</th>' +
+  '        <th>Industry</th><th>Status</th><th>Source</th><th>Responsible Person</th><th>Email</th><th>Phone</th>' +
   '        <th>Expected Vol.</th><th>Current Vol.</th><th>Created</th><th></th>' +
   '      </tr></thead>' +
-  '      <tbody id="tableBody"><tr><td colspan="13" class="loading-row"><div class="spinner"></div>Loading customers…</td></tr></tbody>' +
+  '      <tbody id="tableBody"><tr><td colspan="16" class="loading-row"><div class="spinner"></div>Loading customers…</td></tr></tbody>' +
   '    </table>' +
   '  </div>' +
   '</div>';
@@ -678,11 +682,13 @@ function populateFilterOptions() {
   const industrySel = document.getElementById('filterIndustry');
   const statusSel = document.getElementById('filterStatus');
   const sourceSel = document.getElementById('filterSource');
+  const responsibleSel = document.getElementById('filterResponsible');
 
   uniqueSorted('country').forEach(v => countrySel.insertAdjacentHTML('beforeend', '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>'));
   uniqueSorted('industry').forEach(v => industrySel.insertAdjacentHTML('beforeend', '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>'));
   STATUS_OPTIONS.forEach(v => statusSel.insertAdjacentHTML('beforeend', '<option value="' + v + '">' + v + '</option>'));
   uniqueSorted('source').forEach(v => sourceSel.insertAdjacentHTML('beforeend', '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>'));
+  uniqueSorted('responsiblePerson').forEach(v => responsibleSel.insertAdjacentHTML('beforeend', '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>'));
 }
 
 function applyFilters() {
@@ -691,10 +697,12 @@ function applyFilters() {
   const industry = document.getElementById('filterIndustry').value;
   const status = document.getElementById('filterStatus').value;
   const source = document.getElementById('filterSource').value;
+  const responsible = document.getElementById('filterResponsible').value;
 
   filtered = allCustomers.filter(function (c) {
     const matchesQ = !q ||
       (c.companyName || '').toLowerCase().includes(q) ||
+      (c.customerName || '').toLowerCase().includes(q) ||
       (c.contactPerson || '').toLowerCase().includes(q) ||
       (c.email || '').toLowerCase().includes(q) ||
       (c.serialNo || '').toLowerCase().includes(q);
@@ -702,7 +710,8 @@ function applyFilters() {
     const matchesIndustry = !industry || c.industry === industry;
     const matchesStatus = !status || c.status === status;
     const matchesSource = !source || c.source === source;
-    return matchesQ && matchesCountry && matchesIndustry && matchesStatus && matchesSource;
+    const matchesResponsible = !responsible || c.responsiblePerson === responsible;
+    return matchesQ && matchesCountry && matchesIndustry && matchesStatus && matchesSource && matchesResponsible;
   });
 
   renderTable();
@@ -711,7 +720,7 @@ function applyFilters() {
 function renderTable() {
   const tbody = document.getElementById('tableBody');
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="13"><div class="empty-state">' +
+    tbody.innerHTML = '<tr><td colspan="16"><div class="empty-state">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>' +
       '<div>No customers match your search or filters.</div></div></td></tr>';
     return;
@@ -720,11 +729,14 @@ function renderTable() {
     return '<tr>' +
       '<td>' + escapeHtml(c.serialNo) + '</td>' +
       '<td><strong>' + escapeHtml(c.companyName) + '</strong></td>' +
+      '<td>' + escapeHtml(c.customerName) + '</td>' +
       '<td>' + escapeHtml(c.contactPerson) + '</td>' +
+      '<td>' + escapeHtml(c.contactPersonPosition) + '</td>' +
       '<td>' + escapeHtml(c.country) + '</td>' +
       '<td>' + escapeHtml(c.industry) + '</td>' +
       '<td>' + statusBadge(c.status) + '</td>' +
       '<td>' + escapeHtml(c.source) + '</td>' +
+      '<td>' + escapeHtml(c.responsiblePerson) + '</td>' +
       '<td>' + escapeHtml(c.email) + '</td>' +
       '<td>' + escapeHtml(c.contactNumber) + '</td>' +
       '<td>' + formatCurrency(c.expectedSalesVolume, c.currency) + '</td>' +
@@ -799,18 +811,22 @@ function exportToExcel() {
     return {
       'Serial No': c.serialNo,
       'Company Name': c.companyName,
+      'Customer Name': c.customerName,
       'Country': c.country,
       'Contact Person': c.contactPerson,
+      'Contact Person Position': c.contactPersonPosition,
       'Industry': c.industry,
       'Email': c.email,
       'Contact Number': c.contactNumber,
       'Nationality': c.nationality,
       'Status': c.status,
       'Source': c.source,
+      'Responsible Person': c.responsiblePerson,
       'Currency': c.currency || 'USD',
       'Expected Sales Volume': c.expectedSalesVolume,
       'Current Sales Volume': c.currentSalesVolume,
-      'Created Date': formatDate(c.createdDate)
+      'Created Date': formatDate(c.createdDate),
+      'Notes': c.notes
     };
   });
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -828,7 +844,7 @@ async function loadCustomers(force) {
     }
     applyFilters();
   } catch (err) {
-    tbody.innerHTML = '<tr><td colspan="13"><div class="empty-state" style="color:var(--danger-dark)">Error loading data: ' + escapeHtml(err.message) + '</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="16"><div class="empty-state" style="color:var(--danger-dark)">Error loading data: ' + escapeHtml(err.message) + '</div></td></tr>';
   }
 }
 
@@ -838,11 +854,13 @@ function activeFilterSummary() {
   const industry = document.getElementById('filterIndustry').value;
   const status = document.getElementById('filterStatus').value;
   const source = document.getElementById('filterSource').value;
+  const responsible = document.getElementById('filterResponsible').value;
   const q = document.getElementById('searchInput').value.trim();
   if (country) parts.push('Country: ' + country);
   if (industry) parts.push('Industry: ' + industry);
   if (status) parts.push('Status: ' + status);
   if (source) parts.push('Source: ' + source);
+  if (responsible) parts.push('Responsible: ' + responsible);
   if (q) parts.push('Search: "' + q + '"');
   return parts.length ? parts.join('  \u00b7  ') : 'All customers';
 }
@@ -856,11 +874,14 @@ function generatePrintReport() {
     return '<tr>' +
       '<td>' + escapeHtml(c.serialNo) + '</td>' +
       '<td>' + escapeHtml(c.companyName) + '</td>' +
+      '<td>' + escapeHtml(c.customerName) + '</td>' +
       '<td>' + escapeHtml(c.contactPerson) + '</td>' +
+      '<td>' + escapeHtml(c.contactPersonPosition) + '</td>' +
       '<td>' + escapeHtml(c.country) + '</td>' +
       '<td>' + escapeHtml(c.industry) + '</td>' +
       '<td>' + escapeHtml(c.status) + '</td>' +
       '<td>' + escapeHtml(c.source) + '</td>' +
+      '<td>' + escapeHtml(c.responsiblePerson) + '</td>' +
       '<td>' + escapeHtml(c.email) + '</td>' +
       '<td>' + escapeHtml(c.contactNumber) + '</td>' +
       '<td>' + formatCurrency(c.expectedSalesVolume, c.currency) + '</td>' +
@@ -871,13 +892,13 @@ function generatePrintReport() {
 
   document.getElementById('printReport').innerHTML =
     '<div class="report-header">' +
-    '  <div><div class="company">' + escapeHtml(COMPANY.name) + '</div><div class="address">' + escapeHtml(COMPANY.address) + '</div></div>' +
+    '  <div class="company-block"><img class="company-logo" src="logo.png" alt="Bark Ornament logo"><div><div class="company">' + escapeHtml(COMPANY.name) + '</div><div class="address">' + escapeHtml(COMPANY.address) + '</div></div></div>' +
     '  <div class="report-title"><h1>Customer Report</h1><div class="meta">' + escapeHtml(activeFilterSummary()) + '</div>' +
     '  <div class="meta">' + filtered.length + ' record' + (filtered.length === 1 ? '' : 's') + '</div></div>' +
     '</div>' +
     '<table><thead><tr>' +
-    '<th>Serial No</th><th>Company</th><th>Contact</th><th>Country</th><th>Industry</th>' +
-    '<th>Status</th><th>Source</th><th>Email</th><th>Phone</th><th>Expected Vol.</th><th>Current Vol.</th><th>Created</th>' +
+    '<th>Serial No</th><th>Company</th><th>Customer</th><th>Contact</th><th>Position</th><th>Country</th><th>Industry</th>' +
+    '<th>Status</th><th>Source</th><th>Responsible</th><th>Email</th><th>Phone</th><th>Expected Vol.</th><th>Current Vol.</th><th>Created</th>' +
     '</tr></thead><tbody>' + rowsHtml + '</tbody></table>' +
     '<div class="report-footer">Generated on ' + formatDate(new Date()) + ' — ' + escapeHtml(COMPANY.name) + '</div>';
 
@@ -889,6 +910,7 @@ document.getElementById('filterCountry').addEventListener('change', applyFilters
 document.getElementById('filterIndustry').addEventListener('change', applyFilters);
 document.getElementById('filterStatus').addEventListener('change', applyFilters);
 document.getElementById('filterSource').addEventListener('change', applyFilters);
+document.getElementById('filterResponsible').addEventListener('change', applyFilters);
 document.getElementById('exportBtn').addEventListener('click', exportToExcel);
 document.getElementById('printBtn').addEventListener('click', generatePrintReport);
 
