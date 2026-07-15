@@ -350,6 +350,7 @@ table.data-table tbody tr:hover { background: #FAFBFD; }
 #printReport table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
 #printReport th { text-align: left; background: #EEF2F7; color: var(--ink); font-weight: 700; padding: 6px 7px; border-bottom: 2px solid var(--ink); white-space: nowrap; }
 #printReport td { padding: 6px 7px; border-bottom: 1px solid var(--border); }
+#printReport tr.note-row td { padding: 4px 7px 8px 7px; border-bottom: 1px solid var(--border); background: #FAFBFC; font-style: italic; color: var(--muted); }
 #printReport .report-footer { margin-top: 16px; font-size: 10.5px; color: var(--muted); text-align: right; }
 
 </style>
@@ -871,7 +872,7 @@ function generatePrintReport() {
     return;
   }
   const rowsHtml = filtered.map(function (c) {
-    return '<tr>' +
+    const mainRow = '<tr>' +
       '<td>' + escapeHtml(c.serialNo) + '</td>' +
       '<td>' + escapeHtml(c.companyName) + '</td>' +
       '<td>' + escapeHtml(c.customerName) + '</td>' +
@@ -888,6 +889,10 @@ function generatePrintReport() {
       '<td>' + formatCurrency(c.currentSalesVolume, c.currency) + '</td>' +
       '<td>' + formatDate(c.createdDate) + '</td>' +
       '</tr>';
+    const noteRow = c.notes
+      ? '<tr class="note-row"><td colspan="15"><strong>Note:</strong> ' + escapeHtml(c.notes) + '</td></tr>'
+      : '';
+    return mainRow + noteRow;
   }).join('');
 
   document.getElementById('printReport').innerHTML =
