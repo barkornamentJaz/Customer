@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Add Quotation · Bark Ornament CMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="logo.png">
+<style>
+:root {
+  --ink: #0F2A47; --steel: #2E6096; --steel-dark: #1F4670; --canvas: #F4F6F9; --card: #FFFFFF;
+  --text: #1F2937; --muted: #6B7280; --border: #E3E7ED; --danger: #EF4444; --danger-dark: #C0392B;
+  --radius: 10px; --shadow: 0 1px 2px rgba(20, 33, 61, 0.06), 0 4px 16px rgba(20, 33, 61, 0.06);
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-head: 'Sora', 'Inter', sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; font-family: var(--font-body); background: var(--canvas); color: var(--text); font-size: 14.5px; line-height: 1.5; }
+h1, h2, h3, h4 { font-family: var(--font-head); margin: 0; color: var(--ink); }
+a { color: var(--steel); text-decoration: none; }
+button, input, select, textarea { font-family: inherit; font-size: inherit; }
+#app-shell { display: flex; min-height: 100vh; }
+.sidebar { width: 240px; background: var(--ink); color: #E7EBF3; display: flex; flex-direction: column; flex-shrink: 0; position: sticky; top: 0; height: 100vh; }
+.brand { display: flex; align-items: center; gap: 12px; padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.brand-mark { width: 42px; height: 42px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #fff; flex-shrink: 0; box-shadow: 0 0 0 2px rgba(255,255,255,0.15); }
+.brand-mark img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.brand-name { font-family: var(--font-head); font-weight: 600; font-size: 15px; color: #fff; }
+.brand-sub { font-size: 11.5px; color: #9BA9C4; margin-top: 2px; }
+.nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; }
+.nav-link { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; color: #C4CDE0; font-size: 14px; font-weight: 500; transition: background 0.15s, color 0.15s; }
+.nav-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.nav-link.active { background: var(--steel); color: #fff; font-weight: 600; }
+.nav-icon { width: 18px; height: 18px; flex-shrink: 0; }
+.sidebar-footer { padding: 16px 20px 22px; font-size: 11px; color: #7C8AA8; border-top: 1px solid rgba(255,255,255,0.08); line-height: 1.5; }
+.session-info { font-size: 12px; color: #C7D0E0; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.session-info strong { color: #fff; font-weight: 600; word-break: break-all; }
+.session-info a { color: #8FB6E0; }
+.session-info a:hover { color: #fff; }
+.mobile-topbar { display: none; align-items: center; gap: 12px; background: var(--ink); color: #fff; padding: 14px 16px; position: sticky; top: 0; z-index: 20; }
+.menu-toggle { background: none; border: none; color: #fff; padding: 4px; cursor: pointer; }
+.menu-toggle svg { width: 22px; height: 22px; }
+.main { flex: 1; padding: 32px 36px; max-width: 900px; width: 100%; }
+.page-header { margin-bottom: 24px; }
+.page-header h1 { font-size: 24px; }
+.page-header p { color: var(--muted); margin: 6px 0 0; font-size: 13.5px; }
+.card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); padding: 26px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 20px; }
+@media (max-width: 720px) { .form-grid { grid-template-columns: 1fr; } }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field.full { grid-column: 1 / -1; }
+.field label { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.field .hint { font-size: 11.5px; color: var(--muted); }
+.field input, .field select, .field textarea {
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text); outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.field textarea { resize: vertical; min-height: 80px; font-family: inherit; }
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--steel); box-shadow: 0 0 0 3px rgba(58, 90, 140, 0.15); }
+.field input.invalid, .field select.invalid { border-color: var(--danger); }
+.field .error-msg { font-size: 11.5px; color: var(--danger); min-height: 14px; }
+.field input[readonly] { background: var(--canvas); color: var(--muted); }
+.form-actions { display: flex; gap: 12px; margin-top: 22px; justify-content: flex-end; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 8px; border: 1px solid transparent; font-weight: 600; font-size: 13.5px; cursor: pointer; transition: transform 0.1s, background 0.15s; white-space: nowrap; }
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--ink); color: #fff; }
+.btn-primary:hover { background: #1d2f52; }
+.btn-accent { background: var(--steel); color: #fff; }
+.btn-accent:hover { background: var(--steel-dark); }
+.btn-outline { background: #fff; color: var(--ink); border-color: var(--border); }
+.btn-outline:hover { border-color: var(--steel); color: var(--steel); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+#toast-container { position: fixed; top: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 10px; }
+.toast { background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 8px; font-size: 13.5px; font-weight: 500; box-shadow: var(--shadow); opacity: 0; transform: translateY(-8px); transition: opacity 0.25s, transform 0.25s; max-width: 320px; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast-success { background: #0F5D46; }
+.toast-error { background: var(--danger-dark); }
+@media (max-width: 900px) {
+  .sidebar { position: fixed; left: 0; top: 0; height: 100vh; z-index: 30; transform: translateX(-100%); transition: transform 0.2s ease; }
+  .sidebar.open { transform: translateX(0); }
+  .mobile-topbar { display: flex; }
+  .main { padding: 20px; }
+}
+</style>
+</head>
+<body>
+
+<div id="app-shell"></div>
+
+<script src="shared.js"></script>
+<script>
+const currentSession = Session.requireLogin();
+if (!currentSession) { throw new Error('Redirecting to login…'); }
+
+renderShell('quotations');
+
+const params = new URLSearchParams(window.location.search);
+const editingQuotationNo = params.get('edit');
+const isEditMode = !!editingQuotationNo;
+
+if (isEditMode && currentSession.role !== 'admin') {
+  window.location.href = 'quotations.html';
+  throw new Error('Redirecting — only admins can edit quotations.');
+}
+
+const currencyOptionsHtml = CURRENCY_LIST.map(c => '<option value="' + c.code + '">' + c.code + ' — ' + c.name + '</option>').join('');
+const statusOptionsHtml = QUOTATION_STATUSES.map(s => '<option value="' + s + '">' + s + '</option>').join('');
+
+const mainEl = document.getElementById('main-content');
+mainEl.innerHTML =
+  '<div class="page-header"><h1>' + (isEditMode ? 'Edit Quotation' : 'Add Quotation') + '</h1><p>' + (isEditMode ? 'Update an existing quotation.' : 'Create a new quotation record.') + '</p></div>' +
+  '<div class="card">' +
+  '  <form id="quotationForm" novalidate>' +
+  '    <div class="form-grid">' +
+  '      <div class="field"><label>Quotation No *</label>' +
+  '        <input type="text" id="quotationNo" placeholder="e.g. QTN-0001"' + (isEditMode ? ' readonly' : '') + '>' +
+  '        <div class="error-msg" data-for="quotationNo"></div></div>' +
+
+  '      <div class="field"><label>Customer *</label>' +
+  '        <select id="customerSerialNo"><option value="">Loading customers…</option></select>' +
+  '        <div class="error-msg" data-for="customerSerialNo"></div></div>' +
+
+  '      <div class="field"><label>Quotation Date *</label>' +
+  '        <input type="date" id="quotationDate">' +
+  '        <div class="error-msg" data-for="quotationDate"></div></div>' +
+
+  '      <div class="field"><label>Status</label>' +
+  '        <select id="status">' + statusOptionsHtml + '</select></div>' +
+
+  '      <div class="field"><label>Currency *</label>' +
+  '        <select id="currency">' + currencyOptionsHtml + '</select></div>' +
+
+  '      <div class="field"><label>Value *</label>' +
+  '        <input type="number" id="value" step="0.01" min="0" placeholder="0.00">' +
+  '        <div class="error-msg" data-for="value"></div></div>' +
+
+  '      <div class="field"><label>Responsible Person</label>' +
+  '        <input type="text" id="responsiblePerson" readonly placeholder="Auto-filled from customer">' +
+  '        <div class="hint">Set automatically from the selected customer\'s record.</div></div>' +
+
+  '      <div class="field full"><label>Remarks</label>' +
+  '        <textarea id="remarks" placeholder="Any notes about this quotation…"></textarea></div>' +
+  '    </div>' +
+  '    <div class="form-actions">' +
+  '      <a href="quotations.html" class="btn btn-outline">Cancel</a>' +
+  '      <button type="submit" class="btn btn-accent" id="saveBtn">' + (isEditMode ? 'Save Changes' : 'Create Quotation') + '</button>' +
+  '    </div>' +
+  '  </form>' +
+  '</div>';
+
+let customers = [];
+
+function populateCustomerSelect(selectedSerial) {
+  const sel = document.getElementById('customerSerialNo');
+  sel.innerHTML = '<option value="">Select a customer…</option>' +
+    customers.map(c => '<option value="' + escapeHtml(c.serialNo) + '">' + escapeHtml(c.companyName) + ' (' + escapeHtml(c.serialNo) + ')</option>').join('');
+  if (selectedSerial) sel.value = selectedSerial;
+  updateResponsiblePerson();
+}
+
+function updateResponsiblePerson() {
+  const serial = document.getElementById('customerSerialNo').value;
+  const customer = customers.find(c => c.serialNo === serial);
+  document.getElementById('responsiblePerson').value = customer ? (customer.responsiblePerson || '') : '';
+}
+
+function clearErrors() {
+  document.querySelectorAll('.error-msg').forEach(el => el.textContent = '');
+  document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
+}
+
+function setError(field, message) {
+  const el = document.querySelector('.error-msg[data-for="' + field + '"]');
+  if (el) el.textContent = message;
+  const input = document.getElementById(field);
+  if (input) input.classList.add('invalid');
+}
+
+function validate() {
+  clearErrors();
+  let ok = true;
+  if (!document.getElementById('quotationNo').value.trim()) { setError('quotationNo', 'Quotation No is required.'); ok = false; }
+  if (!document.getElementById('customerSerialNo').value) { setError('customerSerialNo', 'Please select a customer.'); ok = false; }
+  if (!document.getElementById('quotationDate').value) { setError('quotationDate', 'Quotation date is required.'); ok = false; }
+  const val = document.getElementById('value').value;
+  if (val === '' || Number(val) < 0) { setError('value', 'Enter a valid value.'); ok = false; }
+  return ok;
+}
+
+async function init() {
+  try {
+    customers = await CustomerStore.load();
+  } catch (err) {
+    showToast('Error loading customers: ' + err.message, 'error');
+    customers = [];
+  }
+
+  let record = null;
+  if (isEditMode) {
+    try {
+      const quotations = await QuotationStore.load();
+      record = quotations.find(q => q.quotationNo === editingQuotationNo);
+      if (!record) { showToast('Quotation not found.', 'error'); window.location.href = 'quotations.html'; return; }
+    } catch (err) {
+      showToast('Error loading quotation: ' + err.message, 'error');
+    }
+  }
+
+  populateCustomerSelect(record ? record.customerSerialNo : '');
+
+  if (record) {
+    document.getElementById('quotationNo').value = record.quotationNo || '';
+    document.getElementById('quotationDate').value = record.quotationDate ? new Date(record.quotationDate).toISOString().slice(0, 10) : '';
+    document.getElementById('status').value = record.status || 'Pending';
+    document.getElementById('currency').value = record.currency || 'USD';
+    document.getElementById('value').value = record.value || '';
+    document.getElementById('remarks').value = record.remarks || '';
+  } else {
+    document.getElementById('quotationDate').value = new Date().toISOString().slice(0, 10);
+  }
+}
+
+document.getElementById('customerSerialNo').addEventListener('change', updateResponsiblePerson);
+
+document.getElementById('quotationForm').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  if (!validate()) return;
+
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+
+  const data = {
+    quotationNo: document.getElementById('quotationNo').value.trim(),
+    customerSerialNo: document.getElementById('customerSerialNo').value,
+    quotationDate: document.getElementById('quotationDate').value,
+    status: document.getElementById('status').value,
+    currency: document.getElementById('currency').value,
+    value: document.getElementById('value').value,
+    responsiblePerson: document.getElementById('responsiblePerson').value,
+    remarks: document.getElementById('remarks').value.trim()
+  };
+
+  try {
+    if (isEditMode) {
+      await Api.updateQuotation(data);
+      showToast('Quotation updated.', 'success');
+    } else {
+      await Api.addQuotation(data);
+      showToast('Quotation created.', 'success');
+    }
+    QuotationStore.invalidate();
+    window.location.href = 'quotations.html';
+  } catch (err) {
+    showToast('Error saving: ' + err.message, 'error');
+    saveBtn.disabled = false;
+    saveBtn.textContent = isEditMode ? 'Save Changes' : 'Create Quotation';
+  }
+});
+
+init();
+</script>
+</body>
+</html>

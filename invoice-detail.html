@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice Detail · Bark Ornament CMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="logo.png">
+<style>
+  :root { --ink: #0F2A47; --steel: #2E6096; --border: #E3E7ED; --muted: #6B7280; --text: #1F2937; --font-body: 'Inter', sans-serif; --font-head: 'Sora', 'Inter', sans-serif; }
+  * { box-sizing: border-box; }
+  body { font-family: var(--font-body); color: var(--text); margin: 0; background: #F4F6F9; }
+  .sheet { max-width: 780px; margin: 30px auto; background: #fff; padding: 48px; border-radius: 10px; box-shadow: 0 1px 2px rgba(20,33,61,.06), 0 4px 16px rgba(20,33,61,.06); }
+  .doc-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid var(--ink); padding-bottom: 20px; margin-bottom: 28px; }
+  .doc-header .company-block { display: flex; align-items: center; gap: 12px; }
+  .doc-header .company-logo { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+  .doc-header .company { font-family: var(--font-head); font-weight: 700; font-size: 20px; color: var(--ink); }
+  .doc-header .address { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .doc-title { text-align: right; }
+  .doc-title h1 { font-family: var(--font-head); font-size: 18px; margin: 0; color: var(--ink); }
+  .doc-title .serial { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+  .section-title { font-family: var(--font-head); font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--steel); font-weight: 700; margin: 26px 0 12px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 28px; }
+  .row { border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+  .row .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .02em; }
+  .row .value { font-size: 14.5px; font-weight: 600; margin-top: 3px; }
+  .value-highlight { font-size: 26px; font-family: var(--font-head); font-weight: 700; color: var(--ink); margin-top: 4px; }
+  .actions { text-align: center; margin: 24px auto; max-width: 780px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border); background: #fff; color: var(--ink); font-weight: 600; cursor: pointer; text-decoration: none; font-size: 13.5px; }
+  .btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .footer-note { text-align: center; font-size: 11.5px; color: var(--muted); margin-top: 30px; }
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff; }
+    .sheet { box-shadow: none; margin: 0; max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="actions no-print">
+  <a href="invoices.html" class="btn">&larr; Back to Invoices</a>
+  <button class="btn primary" onclick="window.print()">Print / Save as PDF</button>
+</div>
+
+<div class="sheet" id="sheet">
+  <div style="text-align:center;padding:60px;color:#6B7280;">Loading invoice…</div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+const params = new URLSearchParams(window.location.search);
+const invoiceNo = params.get('id');
+
+function row(label, value) {
+  return '<div class="row"><div class="label">' + label + '</div><div class="value">' + (value || '—') + '</div></div>';
+}
+
+async function load() {
+  const sheetEl = document.getElementById('sheet');
+  if (!invoiceNo) { sheetEl.innerHTML = '<p>No invoice specified.</p>'; return; }
+  try {
+    const invoices = await InvoiceStore.load();
+    const inv = invoices.find(x => x.invoiceNo === invoiceNo);
+    if (!inv) { sheetEl.innerHTML = '<p>Invoice not found.</p>'; return; }
+
+    sheetEl.innerHTML =
+      '<div class="doc-header">' +
+      '  <div class="company-block"><img class="company-logo" src="logo.png" alt="Bark Ornament logo"><div><div class="company">' + escapeHtml(COMPANY.name) + '</div><div class="address">' + escapeHtml(COMPANY.address) + '</div></div></div>' +
+      '  <div class="doc-title"><h1>Invoice Summary</h1><div class="serial">' + escapeHtml(inv.invoiceNo) + '</div></div>' +
+      '</div>' +
+
+      '<div class="grid">' +
+      row('Customer', escapeHtml(inv.customerName)) +
+      row('Invoice Date', formatDate(inv.invoiceDate)) +
+      row('Responsible Person', escapeHtml(inv.responsiblePerson)) +
+      '</div>' +
+
+      '<div class="section-title">Value</div>' +
+      '<div class="value-highlight">' + formatCurrency(inv.value, inv.currency) + '</div>' +
+
+      '<div class="footer-note">Generated on ' + formatDate(new Date()) + ' — ' + escapeHtml(COMPANY.name) + '</div>';
+  } catch (err) {
+    sheetEl.innerHTML = '<p style="color:#C0392B">Error loading invoice: ' + escapeHtml(err.message) + '</p>';
+  }
+}
+
+load();
+</script>
+</body>
+</html>
