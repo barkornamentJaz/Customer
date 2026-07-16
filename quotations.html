@@ -62,6 +62,8 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); padding: 22px; }
 .table-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 18px; }
+.totals-bar { font-size: 13.5px; color: var(--text); margin-bottom: 14px; padding: 10px 14px; background: var(--canvas); border-radius: 8px; border: 1px solid var(--border); }
+.totals-bar strong { color: var(--ink); font-family: var(--font-head); }
 .search-box { position: relative; flex: 1; min-width: 220px; }
 .search-box svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--muted); pointer-events: none; }
 .search-box input { width: 100%; padding: 10px 34px 10px 36px; border: 1px solid var(--border); border-radius: 8px; }
@@ -577,11 +579,14 @@ mainEl.innerHTML =
   '        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>' +
   '      </button>' +
   '    </div>' +
+  '    <select id="filterCustomer"><option value="">All Customers</option></select>' +
+  '    <select id="filterMonth"><option value="">All Months</option></select>' +
   '    <select id="filterStatus"><option value="">All Statuses</option></select>' +
   '    <select id="filterCurrency"><option value="">All Currencies</option></select>' +
   '    <select id="filterResponsible"><option value="">All Responsible Persons</option></select>' +
   '    <button type="button" class="btn btn-outline btn-sm" id="clearFiltersBtn">Clear Filters</button>' +
   '  </div>' +
+  '  <div class="totals-bar" id="totalsBar"></div>' +
   '  <div class="table-wrap">' +
   '    <table class="data-table">' +
   '      <thead><tr>' +
@@ -616,11 +621,29 @@ function remarksPreview(remarks) {
   return '<span title="' + escapeHtml(remarks) + '" style="cursor:help;">' + escapeHtml(short) + '</span>';
 }
 
+function monthKey(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+function monthLabel(key) {
+  const parts = key.split('-');
+  const d = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
+}
+
 function populateFilterOptions() {
   function uniqueSorted(key) { return [...new Set(allQuotations.map(q => q[key]).filter(Boolean))].sort(); }
+  const customerSel = document.getElementById('filterCustomer');
+  const monthSel = document.getElementById('filterMonth');
   const statusSel = document.getElementById('filterStatus');
   const currencySel = document.getElementById('filterCurrency');
   const responsibleSel = document.getElementById('filterResponsible');
+  uniqueSorted('customerName').forEach(v => customerSel.insertAdjacentHTML('beforeend', '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>'));
+  const months = [...new Set(allQuotations.map(q => monthKey(q.quotationDate)).filter(Boolean))].sort().reverse();
+  months.forEach(k => monthSel.insertAdjacentHTML('beforeend', '<option value="' + k + '">' + monthLabel(k) + '</option>'));
   QUOTATION_STATUSES.forEach(v => statusSel.insertAdjacentHTML('beforeend', '<option value="' + v + '">' + v + '</option>'));
   uniqueSorted('currency').forEach(v => currencySel.insertAdjacentHTML('beforeend', '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>'));
   uniqueSorted('responsiblePerson').forEach(v => responsibleSel.insertAdjacentHTML('beforeend', '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>'));
@@ -629,6 +652,8 @@ function populateFilterOptions() {
 function applyFilters() {
   const searchInput = document.getElementById('searchInput');
   const q = searchInput.value.trim().toLowerCase();
+  const customer = document.getElementById('filterCustomer').value;
+  const month = document.getElementById('filterMonth').value;
   const status = document.getElementById('filterStatus').value;
   const currency = document.getElementById('filterCurrency').value;
   const responsible = document.getElementById('filterResponsible').value;
@@ -638,16 +663,35 @@ function applyFilters() {
   filtered = allQuotations.filter(function (r) {
     const haystack = [r.quotationNo, r.customerName, r.responsiblePerson, r.remarks].filter(Boolean).join(' ').toLowerCase();
     const matchesQ = qWords.length === 0 || qWords.every(w => haystack.includes(w));
+    const matchesCustomer = !customer || r.customerName === customer;
+    const matchesMonth = !month || monthKey(r.quotationDate) === month;
     const matchesStatus = !status || r.status === status;
     const matchesCurrency = !currency || r.currency === currency;
     const matchesResponsible = !responsible || r.responsiblePerson === responsible;
-    return matchesQ && matchesStatus && matchesCurrency && matchesResponsible;
+    return matchesQ && matchesCustomer && matchesMonth && matchesStatus && matchesCurrency && matchesResponsible;
   });
   renderTable();
+  renderTotals();
+}
+
+function renderTotals() {
+  const bar = document.getElementById('totalsBar');
+  if (!filtered.length) { bar.innerHTML = ''; return; }
+  const sums = {};
+  filtered.forEach(function (r) {
+    const cur = r.currency || 'USD';
+    sums[cur] = (sums[cur] || 0) + (Number(r.value) || 0);
+  });
+  const parts = Object.keys(sums).sort().map(function (cur) {
+    return '<strong>' + formatCurrency(sums[cur], cur) + '</strong>';
+  });
+  bar.innerHTML = 'Total (' + filtered.length + (filtered.length === 1 ? ' quotation' : ' quotations') + '): ' + parts.join(' &nbsp;+&nbsp; ');
 }
 
 function clearAllFilters() {
   document.getElementById('searchInput').value = '';
+  document.getElementById('filterCustomer').value = '';
+  document.getElementById('filterMonth').value = '';
   document.getElementById('filterStatus').value = '';
   document.getElementById('filterCurrency').value = '';
   document.getElementById('filterResponsible').value = '';
@@ -754,10 +798,14 @@ async function loadQuotations(force) {
 
 function activeFilterSummary() {
   const parts = [];
+  const customer = document.getElementById('filterCustomer').value;
+  const month = document.getElementById('filterMonth').value;
   const status = document.getElementById('filterStatus').value;
   const currency = document.getElementById('filterCurrency').value;
   const responsible = document.getElementById('filterResponsible').value;
   const q = document.getElementById('searchInput').value.trim();
+  if (customer) parts.push('Customer: ' + customer);
+  if (month) parts.push('Month: ' + monthLabel(month));
   if (status) parts.push('Status: ' + status);
   if (currency) parts.push('Currency: ' + currency);
   if (responsible) parts.push('Responsible: ' + responsible);
@@ -780,6 +828,15 @@ function generatePrintReport() {
     return mainRow + noteRow;
   }).join('');
 
+  const sums = {};
+  filtered.forEach(function (r) {
+    const cur = r.currency || 'USD';
+    sums[cur] = (sums[cur] || 0) + (Number(r.value) || 0);
+  });
+  const totalsHtml = Object.keys(sums).sort().map(function (cur) {
+    return '<tr class="totals-row"><td colspan="3" style="text-align:right;"><strong>Total (' + escapeHtml(cur) + ')</strong></td><td><strong>' + formatCurrency(sums[cur], cur) + '</strong></td><td colspan="2"></td></tr>';
+  }).join('');
+
   document.getElementById('printReport').innerHTML =
     '<div class="report-header">' +
     '  <div class="company-block"><img class="company-logo" src="logo.png" alt="Bark Ornament logo"><div><div class="company">' + escapeHtml(COMPANY.name) + '</div><div class="address">' + escapeHtml(COMPANY.address) + '</div></div></div>' +
@@ -787,7 +844,7 @@ function generatePrintReport() {
     '  <div class="meta">' + filtered.length + ' record' + (filtered.length === 1 ? '' : 's') + '</div></div>' +
     '</div>' +
     '<table><thead><tr><th>Quotation No</th><th>Customer</th><th>Date</th><th>Value</th><th>Status</th><th>Responsible</th></tr></thead>' +
-    '<tbody>' + rowsHtml + '</tbody></table>' +
+    '<tbody>' + rowsHtml + totalsHtml + '</tbody></table>' +
     '<div class="report-footer">Generated on ' + formatDate(new Date()) + ' — ' + escapeHtml(COMPANY.name) + '</div>';
 
   window.print();
@@ -799,6 +856,8 @@ document.getElementById('searchClearBtn').addEventListener('click', function () 
   input.value = ''; applyFilters(); input.focus();
 });
 document.getElementById('clearFiltersBtn').addEventListener('click', clearAllFilters);
+document.getElementById('filterCustomer').addEventListener('change', applyFilters);
+document.getElementById('filterMonth').addEventListener('change', applyFilters);
 document.getElementById('filterStatus').addEventListener('change', applyFilters);
 document.getElementById('filterCurrency').addEventListener('change', applyFilters);
 document.getElementById('filterResponsible').addEventListener('change', applyFilters);
