@@ -440,7 +440,9 @@ function renderShell(activePage) {
   const nav = [
     { key: 'dashboard', label: 'Dashboard', href: 'index.html', icon: 'grid' },
     { key: 'register', label: 'Add Customer', href: 'register.html', icon: 'plus' },
-    { key: 'customers', label: 'Customers', href: 'customers.html', icon: 'list' }
+    { key: 'customers', label: 'Customers', href: 'customers.html', icon: 'list' },
+    { key: 'quotations', label: 'Quotations', href: 'quotations.html', icon: 'quote' },
+    { key: 'invoices', label: 'Invoices', href: 'invoices.html', icon: 'invoice' }
   ];
   if (isAdmin) {
     nav.push({ key: 'team', label: 'Team Access', href: 'login.html', icon: 'team' });
@@ -450,6 +452,8 @@ function renderShell(activePage) {
     grid: '<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
     list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    quote: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6M9 11h3"/>',
+    invoice: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 17h6M9 13h6"/>',
     team: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>'
   };
 
