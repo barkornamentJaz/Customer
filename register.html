@@ -387,9 +387,7 @@ const SOURCE_OPTIONS = [
    reached — it is never the source of truth. */
 
 const DEFAULT_COUNTRIES = [
-  { name: 'Maldives', prefix: 'MAL', currency: 'USD' },
-  { name: 'Seychelles', prefix: 'SEY', currency: 'USD' },
-  { name: 'Local', prefix: 'LOC', currency: 'LKR' }
+  { name: 'Seychelles', prefix: 'SEY', currency: 'USD' }
 ];
 
 const CountryConfig = {
@@ -453,7 +451,7 @@ const CountryConfig = {
   async remove(name) {
     const key = String(name || '').toLowerCase();
     if (DEFAULT_COUNTRIES.some(function (c) { return c.name.toLowerCase() === key; })) {
-      throw new Error('The built-in countries (Maldives, Seychelles, Local) can\u2019t be removed.');
+      throw new Error('The built-in country (Seychelles) can\u2019t be removed.');
     }
     const existing = this._customList();
     const match = existing.find(function (c) { return c.name.toLowerCase() === key; });
@@ -833,15 +831,15 @@ mainEl.innerHTML =
   '        <input type="text" id="companyName">' +
   '        <div class="error-msg" data-for="companyName"></div></div>' +
 
-  '      <div class="field"><label>Contact Person</label>' +
-  '        <input type="text" id="customerName" placeholder="Name of the person to contact">' +
+  '      <div class="field"><label>Contact Person 1 Name</label>' +
+  '        <input type="text" id="customerName" placeholder="Name of the primary contact">' +
   '        <div class="error-msg" data-for="customerName"></div></div>' +
 
-  '      <div class="field"><label>Contact No</label>' +
+  '      <div class="field"><label>Contact Person 1 Contact No</label>' +
   '        <input type="tel" id="contactPerson" placeholder="e.g. +94 77 123 4567">' +
   '        <div class="error-msg" data-for="contactPerson"></div></div>' +
 
-  '      <div class="field"><label>Contact Person Position</label>' +
+  '      <div class="field"><label>Contact Person 1 Position</label>' +
   '        <input type="text" id="contactPersonPosition" placeholder="e.g. Purchasing Manager">' +
   '        <div class="error-msg" data-for="contactPersonPosition"></div></div>' +
 
@@ -852,6 +850,10 @@ mainEl.innerHTML =
   '      <div class="field"><label>Contact Person 2 Contact No</label>' +
   '        <input type="tel" id="contactPerson2No" placeholder="e.g. +94 77 123 4567">' +
   '        <div class="error-msg" data-for="contactPerson2No"></div></div>' +
+
+  '      <div class="field"><label>Contact Person 2 Position</label>' +
+  '        <input type="text" id="contactPerson2Position" placeholder="e.g. Procurement Officer">' +
+  '        <div class="error-msg" data-for="contactPerson2Position"></div></div>' +
 
   '      <div class="field"><label>Country *</label>' +
   '        <div style="display:flex;gap:8px;align-items:center;">' +
@@ -865,7 +867,7 @@ mainEl.innerHTML =
   '        <input type="text" id="nationality">' +
   '        <div class="error-msg" data-for="nationality"></div></div>' +
 
-  '      <div class="field"><label>Industry *</label>' +
+  '      <div class="field"><label>Industry</label>' +
   '        <input type="text" id="industry">' +
   '        <div class="error-msg" data-for="industry"></div></div>' +
 
@@ -877,16 +879,20 @@ mainEl.innerHTML =
   '        <input type="email" id="email">' +
   '        <div class="error-msg" data-for="email"></div></div>' +
 
-  '      <div class="field"><label>Source *</label>' +
+  '      <div class="field"><label>Source</label>' +
   '        <select id="source"></select>' +
   '        <div class="hint">How did this customer/lead come in?</div>' +
   '        <div class="error-msg" data-for="source"></div></div>' +
 
-  '      <div class="field" id="sourceOtherField" style="display:none;"><label>Please specify *</label>' +
+  '      <div class="field" id="sourceOtherField" style="display:none;"><label>Please specify</label>' +
   '        <input type="text" id="sourceOther" placeholder="e.g. trade show, walk-by, friend referral">' +
   '        <div class="error-msg" data-for="sourceOther"></div></div>' +
 
-  '      <div class="field"><label>Expected Sales Volume (<span id="expectedCurrencyLabel">USD</span>)</label>' +
+  '      <div class="field"><label>Expected Sales Volume (<span id="expectedMonthlyCurrencyLabel">USD</span>) \u2013 Monthly</label>' +
+  '        <input type="number" id="expectedSalesVolumeMonthly" min="0" step="0.01">' +
+  '        <div class="error-msg" data-for="expectedSalesVolumeMonthly"></div></div>' +
+
+  '      <div class="field"><label>Expected Sales Volume (<span id="expectedCurrencyLabel">USD</span>) \u2013 Annually</label>' +
   '        <input type="number" id="expectedSalesVolume" min="0" step="0.01">' +
   '        <div class="error-msg" data-for="expectedSalesVolume"></div></div>' +
 
@@ -967,6 +973,7 @@ function updateCountryHint() {
   if (cfg) {
     hint.textContent = 'New customers here get serial numbers like ' + cfg.prefix + '-0001, in ' + cfg.currency + '.';
     document.getElementById('expectedCurrencyLabel').textContent = cfg.currency;
+    document.getElementById('expectedMonthlyCurrencyLabel').textContent = cfg.currency;
     document.getElementById('currentCurrencyLabel').textContent = cfg.currency;
   } else {
     hint.textContent = '';
@@ -1214,8 +1221,8 @@ function openManageStaffModal() {
 
 document.getElementById('manageStaffBtn').addEventListener('click', openManageStaffModal);
 
-const fields = ['companyName', 'customerName', 'contactPerson', 'contactPersonPosition', 'contactPerson2Name', 'contactPerson2No', 'country', 'nationality', 'industry', 'status', 'email', 'source', 'sourceOther', 'expectedSalesVolume', 'currentSalesVolume', 'responsiblePerson', 'notes'];
-const required = ['companyName', 'country', 'industry', 'source'];
+const fields = ['companyName', 'customerName', 'contactPerson', 'contactPersonPosition', 'contactPerson2Name', 'contactPerson2No', 'contactPerson2Position', 'country', 'nationality', 'industry', 'status', 'email', 'source', 'sourceOther', 'expectedSalesVolumeMonthly', 'expectedSalesVolume', 'currentSalesVolume', 'responsiblePerson', 'notes'];
+const required = ['companyName', 'country'];
 
 function clearErrors() {
   fields.forEach(function (f) {
@@ -1243,11 +1250,6 @@ function validate() {
     }
   });
 
-  if (document.getElementById('source').value === 'Other' && !document.getElementById('sourceOther').value.trim()) {
-    setError('sourceOther', 'Please specify the source.');
-    valid = false;
-  }
-
   const email = document.getElementById('email').value.trim();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     setError('email', 'Enter a valid email address.');
@@ -1266,7 +1268,7 @@ function validate() {
     valid = false;
   }
 
-  ['expectedSalesVolume', 'currentSalesVolume'].forEach(function (f) {
+  ['expectedSalesVolumeMonthly', 'expectedSalesVolume', 'currentSalesVolume'].forEach(function (f) {
     const val = document.getElementById(f).value;
     if (val !== '' && Number(val) < 0) {
       setError(f, 'Must be zero or greater.');
@@ -1296,6 +1298,7 @@ async function prefillIfEditing() {
     document.getElementById('contactPersonPosition').value = record.contactPersonPosition || '';
     document.getElementById('contactPerson2Name').value = record.contactPerson2Name || '';
     document.getElementById('contactPerson2No').value = record.contactPerson2No || '';
+    document.getElementById('contactPerson2Position').value = record.contactPerson2Position || '';
     populateCountrySelect(record.country);
     if (record.country && !CountryConfig.find(record.country)) {
       // Legacy or unrecognized country value — keep it selectable so editing doesn't wipe it out.
@@ -1317,6 +1320,7 @@ async function prefillIfEditing() {
       document.getElementById('sourceOtherField').style.display = 'flex';
       document.getElementById('sourceOther').value = recordSource;
     }
+    document.getElementById('expectedSalesVolumeMonthly').value = record.expectedSalesVolumeMonthly || '';
     document.getElementById('expectedSalesVolume').value = record.expectedSalesVolume || '';
     document.getElementById('currentSalesVolume').value = record.currentSalesVolume || '';
     populateStaffSelect(record.responsiblePerson);
@@ -1348,6 +1352,7 @@ document.getElementById('customerForm').addEventListener('submit', async functio
     contactPersonPosition: document.getElementById('contactPersonPosition').value.trim(),
     contactPerson2Name: document.getElementById('contactPerson2Name').value.trim(),
     contactPerson2No: document.getElementById('contactPerson2No').value.trim(),
+    contactPerson2Position: document.getElementById('contactPerson2Position').value.trim(),
     country: countryName,
     nationality: document.getElementById('nationality').value.trim(),
     industry: document.getElementById('industry').value.trim(),
@@ -1357,6 +1362,7 @@ document.getElementById('customerForm').addEventListener('submit', async functio
       ? document.getElementById('sourceOther').value.trim()
       : document.getElementById('source').value,
     currency: countryCfg ? countryCfg.currency : 'USD',
+    expectedSalesVolumeMonthly: document.getElementById('expectedSalesVolumeMonthly').value || 0,
     expectedSalesVolume: document.getElementById('expectedSalesVolume').value || 0,
     currentSalesVolume: document.getElementById('currentSalesVolume').value || 0,
     responsiblePerson: document.getElementById('responsiblePerson').value === '__add_new__'
