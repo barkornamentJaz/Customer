@@ -211,6 +211,11 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; }
 @media (max-width: 720px) { .form-grid { grid-template-columns: 1fr; } }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field.full { grid-column: 1 / -1; }
+.contact-groups { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 720px) { .contact-groups { grid-template-columns: 1fr; } }
+.contact-group { border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; background: var(--canvas); display: flex; flex-direction: column; gap: 14px; }
+.contact-group-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.contact-group .field input { background: var(--card); }
 .field label { font-size: 12.5px; font-weight: 600; color: var(--text); }
 .field .hint { font-size: 11.5px; color: var(--muted); }
 .field input, .field select {
@@ -831,29 +836,32 @@ mainEl.innerHTML =
   '        <input type="text" id="companyName">' +
   '        <div class="error-msg" data-for="companyName"></div></div>' +
 
-  '      <div class="field"><label>Contact Person 1 Name</label>' +
-  '        <input type="text" id="customerName" placeholder="Name of the primary contact">' +
-  '        <div class="error-msg" data-for="customerName"></div></div>' +
-
-  '      <div class="field"><label>Contact Person 1 Contact No</label>' +
-  '        <input type="tel" id="contactPerson" placeholder="e.g. +94 77 123 4567">' +
-  '        <div class="error-msg" data-for="contactPerson"></div></div>' +
-
-  '      <div class="field"><label>Contact Person 1 Position</label>' +
-  '        <input type="text" id="contactPersonPosition" placeholder="e.g. Purchasing Manager">' +
-  '        <div class="error-msg" data-for="contactPersonPosition"></div></div>' +
-
-  '      <div class="field"><label>Contact Person 2 Name</label>' +
-  '        <input type="text" id="contactPerson2Name" placeholder="Name of second contact (optional)">' +
-  '        <div class="error-msg" data-for="contactPerson2Name"></div></div>' +
-
-  '      <div class="field"><label>Contact Person 2 Contact No</label>' +
-  '        <input type="tel" id="contactPerson2No" placeholder="e.g. +94 77 123 4567">' +
-  '        <div class="error-msg" data-for="contactPerson2No"></div></div>' +
-
-  '      <div class="field"><label>Contact Person 2 Position</label>' +
-  '        <input type="text" id="contactPerson2Position" placeholder="e.g. Procurement Officer">' +
-  '        <div class="error-msg" data-for="contactPerson2Position"></div></div>' +
+  '      <div class="field full"><div class="contact-groups">' +
+  '        <div class="contact-group">' +
+  '          <div class="contact-group-title">Contact Person 1</div>' +
+  '          <div class="field"><label>Name</label>' +
+  '            <input type="text" id="customerName" placeholder="Name of the primary contact">' +
+  '            <div class="error-msg" data-for="customerName"></div></div>' +
+  '          <div class="field"><label>Contact No</label>' +
+  '            <input type="tel" id="contactPerson" placeholder="e.g. +94 77 123 4567">' +
+  '            <div class="error-msg" data-for="contactPerson"></div></div>' +
+  '          <div class="field"><label>Position</label>' +
+  '            <input type="text" id="contactPersonPosition" placeholder="e.g. Purchasing Manager">' +
+  '            <div class="error-msg" data-for="contactPersonPosition"></div></div>' +
+  '        </div>' +
+  '        <div class="contact-group">' +
+  '          <div class="contact-group-title">Contact Person 2 (optional)</div>' +
+  '          <div class="field"><label>Name</label>' +
+  '            <input type="text" id="contactPerson2Name" placeholder="Name of second contact (optional)">' +
+  '            <div class="error-msg" data-for="contactPerson2Name"></div></div>' +
+  '          <div class="field"><label>Contact No</label>' +
+  '            <input type="tel" id="contactPerson2No" placeholder="e.g. +94 77 123 4567">' +
+  '            <div class="error-msg" data-for="contactPerson2No"></div></div>' +
+  '          <div class="field"><label>Position</label>' +
+  '            <input type="text" id="contactPerson2Position" placeholder="e.g. Procurement Officer">' +
+  '            <div class="error-msg" data-for="contactPerson2Position"></div></div>' +
+  '        </div>' +
+  '      </div></div>' +
 
   '      <div class="field"><label>Country *</label>' +
   '        <div style="display:flex;gap:8px;align-items:center;">' +
