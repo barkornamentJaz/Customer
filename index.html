@@ -735,7 +735,8 @@ async function loadDashboard() {
     const totalsByCurrency = {};
     customers.forEach(function (c) {
       const cur = c.currency || 'USD';
-      if (!totalsByCurrency[cur]) totalsByCurrency[cur] = { expected: 0, current: 0 };
+      if (!totalsByCurrency[cur]) totalsByCurrency[cur] = { expectedMonthly: 0, expected: 0, current: 0 };
+      totalsByCurrency[cur].expectedMonthly += Number(c.expectedSalesVolumeMonthly) || 0;
       totalsByCurrency[cur].expected += Number(c.expectedSalesVolume) || 0;
       totalsByCurrency[cur].current += Number(c.currentSalesVolume) || 0;
     });
@@ -744,7 +745,8 @@ async function loadDashboard() {
       statCard('Existing Customers', active) +
       statCard('New Leads', newLeads);
     Object.keys(totalsByCurrency).sort().forEach(function (cur) {
-      statHtml += statCard('Expected Vol. (' + cur + ')', formatCurrency(totalsByCurrency[cur].expected, cur));
+      statHtml += statCard('Expected Vol. (' + cur + ') \u2013 Monthly', formatCurrency(totalsByCurrency[cur].expectedMonthly, cur));
+      statHtml += statCard('Expected Vol. (' + cur + ') \u2013 Annually', formatCurrency(totalsByCurrency[cur].expected, cur));
       statHtml += statCard('Current Vol. (' + cur + ')', formatCurrency(totalsByCurrency[cur].current, cur));
     });
     document.getElementById('stat-grid').innerHTML = statHtml;
@@ -815,11 +817,16 @@ async function loadDashboard() {
     const iSums = {};
     invoices.forEach(function (r) {
       const cur = r.currency || 'USD';
-      iSums[cur] = (iSums[cur] || 0) + (Number(r.value) || 0);
+      if (!iSums[cur]) iSums[cur] = { value: 0, freight: 0, total: 0 };
+      iSums[cur].value += Number(r.value) || 0;
+      iSums[cur].freight += Number(r.freight) || 0;
+      iSums[cur].total += Number(r.total) || (Number(r.value) || 0) + (Number(r.freight) || 0);
     });
     let iHtml = '<div class="country-row"><span>Total Invoices</span><span class="country-count">' + invoices.length + '</span></div>';
     Object.keys(iSums).sort().forEach(function (cur) {
-      iHtml += '<div class="country-row"><span>Total Value (' + cur + ')</span><span class="country-count">' + formatCurrency(iSums[cur], cur) + '</span></div>';
+      iHtml += '<div class="country-row"><span>Value Total (' + cur + ')</span><span class="country-count">' + formatCurrency(iSums[cur].value, cur) + '</span></div>';
+      iHtml += '<div class="country-row"><span>Freight Total (' + cur + ')</span><span class="country-count">' + formatCurrency(iSums[cur].freight, cur) + '</span></div>';
+      iHtml += '<div class="country-row"><span>Full Total (' + cur + ')</span><span class="country-count">' + formatCurrency(iSums[cur].total, cur) + '</span></div>';
     });
     document.getElementById('invoice-summary').innerHTML = iHtml || '<div class="empty-state">No invoices yet.</div>';
   } catch (err) {
