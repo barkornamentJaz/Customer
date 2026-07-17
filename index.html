@@ -442,7 +442,8 @@ function renderShell(activePage) {
     { key: 'register', label: 'Add Customer', href: 'register.html', icon: 'plus' },
     { key: 'customers', label: 'Customers', href: 'customers.html', icon: 'list' },
     { key: 'quotations', label: 'Quotations', href: 'quotations.html', icon: 'quote' },
-    { key: 'invoices', label: 'Invoices', href: 'invoices.html', icon: 'invoice' }
+    { key: 'invoices', label: 'Invoices', href: 'invoices.html', icon: 'invoice' },
+    { key: 'pos', label: 'Purchase Orders', href: 'pos.html', icon: 'po' }
   ];
   if (isAdmin) {
     nav.push({ key: 'team', label: 'Team Access', href: 'login.html', icon: 'team' });
@@ -454,6 +455,7 @@ function renderShell(activePage) {
     list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
     quote: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6M9 11h3"/>',
     invoice: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 17h6M9 13h6"/>',
+    po: '<path d="M9 14l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.06 0 3.96.7 5.47 1.86"/><path d="M16 4l2 2-2 2"/>',
     team: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>'
   };
 
@@ -591,6 +593,27 @@ const Api = {
     return this._post({ action: 'delete', serialNo: serialNo });
   },
 
+  async getQuotations() {
+    return this._get('quotations');
+  },
+
+  async getInvoices() {
+    return this._get('invoices');
+  },
+
+  async getPOs() {
+    return this._get('pos');
+  },
+
+  async _get(action) {
+    const s = Session.get();
+    const url = API_URL + '?action=' + encodeURIComponent(action) + '&token=' + encodeURIComponent(s ? s.token : '');
+    const res = await fetch(url, { method: 'GET' });
+    const json = await res.json();
+    if (!json.success) { handleAuthError(json.error); throw new Error(json.error || ('Failed to load ' + action)); }
+    return json.data;
+  },
+
   async _post(body) {
     const s = Session.get();
     body.token = s ? s.token : '';
@@ -667,10 +690,6 @@ const mainEl = document.getElementById('main-content');
 mainEl.innerHTML =
   '<div class="page-header">' +
   '  <div><h1>Dashboard</h1><p>Overview of your customer pipeline and sales volumes.</p></div>' +
-  '  <a href="register.html" class="btn btn-accent">' +
-  '    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>' +
-  '    Add Customer' +
-  '  </a>' +
   '</div>' +
   '<div id="stat-grid" class="stat-grid"></div>' +
   '<div class="dash-grid">' +
@@ -681,6 +700,18 @@ mainEl.innerHTML =
   '  <div class="card">' +
   '    <h3>Country-wise Summary</h3>' +
   '    <div id="country-list" class="country-list"></div>' +
+  '  </div>' +
+  '  <div class="card">' +
+  '    <h3>Quotations Summary</h3>' +
+  '    <div id="quotation-summary"></div>' +
+  '  </div>' +
+  '  <div class="card">' +
+  '    <h3>Invoices Summary</h3>' +
+  '    <div id="invoice-summary"></div>' +
+  '  </div>' +
+  '  <div class="card">' +
+  '    <h3>Purchase Orders Summary</h3>' +
+  '    <div id="po-summary"></div>' +
   '  </div>' +
   '</div>';
 
@@ -751,6 +782,73 @@ async function loadDashboard() {
       '<div class="card" style="grid-column:1/-1;color:var(--danger-dark)">Error loading data: ' + escapeHtml(err.message) + '</div>';
     document.getElementById('funnel').innerHTML = '';
     document.getElementById('country-list').innerHTML = '';
+  }
+
+  // Quotations summary
+  try {
+    const quotations = await Api.getQuotations();
+    const qSums = {};
+    const qStatusCounts = {};
+    quotations.forEach(function (r) {
+      const cur = r.currency || 'USD';
+      qSums[cur] = (qSums[cur] || 0) + (Number(r.value) || 0);
+      const st = r.status || 'Pending';
+      qStatusCounts[st] = (qStatusCounts[st] || 0) + 1;
+    });
+    let qHtml = '<div class="country-row"><span>Total Quotations</span><span class="country-count">' + quotations.length + '</span></div>';
+    Object.keys(qSums).sort().forEach(function (cur) {
+      qHtml += '<div class="country-row"><span>Total Value (' + cur + ')</span><span class="country-count">' + formatCurrency(qSums[cur], cur) + '</span></div>';
+    });
+    ['Pending', 'Approved', 'Rejected', 'Repeat'].forEach(function (st) {
+      if (qStatusCounts[st]) {
+        qHtml += '<div class="country-row"><span>' + st + '</span><span class="country-count">' + qStatusCounts[st] + '</span></div>';
+      }
+    });
+    document.getElementById('quotation-summary').innerHTML = qHtml || '<div class="empty-state">No quotations yet.</div>';
+  } catch (err) {
+    document.getElementById('quotation-summary').innerHTML = '<div class="empty-state" style="color:var(--danger-dark)">Error loading quotations: ' + escapeHtml(err.message) + '</div>';
+  }
+
+  // Invoices summary
+  try {
+    const invoices = await Api.getInvoices();
+    const iSums = {};
+    invoices.forEach(function (r) {
+      const cur = r.currency || 'USD';
+      iSums[cur] = (iSums[cur] || 0) + (Number(r.value) || 0);
+    });
+    let iHtml = '<div class="country-row"><span>Total Invoices</span><span class="country-count">' + invoices.length + '</span></div>';
+    Object.keys(iSums).sort().forEach(function (cur) {
+      iHtml += '<div class="country-row"><span>Total Value (' + cur + ')</span><span class="country-count">' + formatCurrency(iSums[cur], cur) + '</span></div>';
+    });
+    document.getElementById('invoice-summary').innerHTML = iHtml || '<div class="empty-state">No invoices yet.</div>';
+  } catch (err) {
+    document.getElementById('invoice-summary').innerHTML = '<div class="empty-state" style="color:var(--danger-dark)">Error loading invoices: ' + escapeHtml(err.message) + '</div>';
+  }
+
+  // Purchase Orders summary
+  try {
+    const pos = await Api.getPOs();
+    const pSums = {};
+    const pStatusCounts = {};
+    pos.forEach(function (r) {
+      const cur = r.currency || 'USD';
+      pSums[cur] = (pSums[cur] || 0) + (Number(r.value) || 0);
+      const st = r.status || 'Not delivered';
+      pStatusCounts[st] = (pStatusCounts[st] || 0) + 1;
+    });
+    let pHtml = '<div class="country-row"><span>Total POs</span><span class="country-count">' + pos.length + '</span></div>';
+    Object.keys(pSums).sort().forEach(function (cur) {
+      pHtml += '<div class="country-row"><span>Total Value (' + cur + ')</span><span class="country-count">' + formatCurrency(pSums[cur], cur) + '</span></div>';
+    });
+    ['Not delivered', 'Partially delivered', 'Complete'].forEach(function (st) {
+      if (pStatusCounts[st]) {
+        pHtml += '<div class="country-row"><span>' + st + '</span><span class="country-count">' + pStatusCounts[st] + '</span></div>';
+      }
+    });
+    document.getElementById('po-summary').innerHTML = pHtml || '<div class="empty-state">No purchase orders yet.</div>';
+  } catch (err) {
+    document.getElementById('po-summary').innerHTML = '<div class="empty-state" style="color:var(--danger-dark)">Error loading purchase orders: ' + escapeHtml(err.message) + '</div>';
   }
 }
 
