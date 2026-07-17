@@ -262,7 +262,8 @@ function renderShell(activePage) {
     { key: 'register', label: 'Add Customer', href: 'register.html', icon: 'plus' },
     { key: 'customers', label: 'Customers', href: 'customers.html', icon: 'list' },
     { key: 'quotations', label: 'Quotations', href: 'quotations.html', icon: 'quote' },
-    { key: 'invoices', label: 'Invoices', href: 'invoices.html', icon: 'invoice' }
+    { key: 'invoices', label: 'Invoices', href: 'invoices.html', icon: 'invoice' },
+    { key: 'pos', label: 'Purchase Orders', href: 'pos.html', icon: 'po' }
   ];
   if (isAdmin) {
     nav.push({ key: 'team', label: 'Team Access', href: 'login.html', icon: 'team' });
@@ -274,6 +275,7 @@ function renderShell(activePage) {
     list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
     quote: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6M9 11h3"/>',
     invoice: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 17h6M9 13h6"/>',
+    po: '<path d="M9 14l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.06 0 3.96.7 5.47 1.86"/><path d="M16 4l2 2-2 2"/>',
     team: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>'
   };
 
