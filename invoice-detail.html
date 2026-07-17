@@ -489,7 +489,12 @@ async function load() {
       '</div>' +
 
       '<div class="section-title">Value</div>' +
-      '<div class="value-highlight">' + formatCurrency(inv.value, inv.currency) + '</div>' +
+      '<div class="grid">' +
+      row('Value', formatCurrency(inv.value, inv.currency)) +
+      row('Freight Charges', formatCurrency(inv.freight, inv.currency)) +
+      '</div>' +
+      '<div class="section-title">Total</div>' +
+      '<div class="value-highlight">' + formatCurrency((inv.total !== undefined && inv.total !== '' && inv.total !== null) ? inv.total : (Number(inv.value) || 0) + (Number(inv.freight) || 0), inv.currency) + '</div>' +
 
       '<div class="footer-note">Generated on ' + formatDate(new Date()) + ' — ' + escapeHtml(COMPANY.name) + '</div>';
   } catch (err) {
