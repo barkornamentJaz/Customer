@@ -493,11 +493,12 @@ async function load() {
 
       '<div class="grid">' +
       row('Company Name', escapeHtml(c.companyName)) +
-      row('Contact Person', escapeHtml(c.customerName)) +
-      row('Contact No', escapeHtml(c.contactPerson)) +
-      row('Contact Person Position', escapeHtml(c.contactPersonPosition)) +
-      row('Contact Person 2', escapeHtml(c.contactPerson2Name)) +
-      row('Contact Person 2 No', escapeHtml(c.contactPerson2No)) +
+      row('Contact Person 1 Name', escapeHtml(c.customerName)) +
+      row('Contact Person 1 Contact No', escapeHtml(c.contactPerson)) +
+      row('Contact Person 1 Position', escapeHtml(c.contactPersonPosition)) +
+      row('Contact Person 2 Name', escapeHtml(c.contactPerson2Name)) +
+      row('Contact Person 2 Contact No', escapeHtml(c.contactPerson2No)) +
+      row('Contact Person 2 Position', escapeHtml(c.contactPerson2Position)) +
       row('Country', escapeHtml(c.country)) +
       row('Nationality', escapeHtml(c.nationality)) +
       row('Industry', escapeHtml(c.industry)) +
@@ -509,7 +510,8 @@ async function load() {
 
       '<div class="section-title">Sales Information</div>' +
       '<div class="grid">' +
-      row('Expected Sales Volume', formatCurrency(c.expectedSalesVolume, c.currency)) +
+      row('Expected Sales Volume (Monthly)', formatCurrency(c.expectedSalesVolumeMonthly, c.currency)) +
+      row('Expected Sales Volume (Annually)', formatCurrency(c.expectedSalesVolume, c.currency)) +
       row('Current Sales Volume', formatCurrency(c.currentSalesVolume, c.currency)) +
       row('Created Date', formatDate(c.createdDate)) +
       '</div>' +
