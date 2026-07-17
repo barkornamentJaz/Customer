@@ -616,8 +616,14 @@ function validate() {
 }
 
 async function init() {
+  // Fire both requests at once — the PO lookup doesn't actually depend on
+  // the customer list, so there's no need to wait for one before starting
+  // the other.
+  const customersPromise = CustomerStore.load();
+  const poPromise = isEditMode ? POStore.load() : null;
+
   try {
-    customers = await CustomerStore.load();
+    customers = await customersPromise;
   } catch (err) {
     showToast('Error loading customers: ' + err.message, 'error');
     customers = [];
@@ -626,7 +632,7 @@ async function init() {
   let record = null;
   if (isEditMode) {
     try {
-      const poRecords = await POStore.load();
+      const poRecords = await poPromise;
       record = poRecords.find(q => q.poNo === editingPONo);
       if (!record) { showToast('PO not found.', 'error'); window.location.href = 'pos.html'; return; }
     } catch (err) {
