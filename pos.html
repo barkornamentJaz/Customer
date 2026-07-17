@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Purchase Orders · Bark Ornament CMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="logo.png">
+<style>
+:root {
+  --ink: #0F2A47; --ink-light: #1B3A5C; --steel: #2E6096; --steel-dark: #1F4670;
+  --accent: #2E6096; --accent-dark: #1F4670; --canvas: #F4F6F9; --card: #FFFFFF;
+  --text: #1F2937; --muted: #6B7280; --border: #E3E7ED; --danger: #EF4444; --danger-dark: #C0392B;
+  --success: #10B981; --radius: 10px;
+  --shadow: 0 1px 2px rgba(20, 33, 61, 0.06), 0 4px 16px rgba(20, 33, 61, 0.06);
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-head: 'Sora', 'Inter', sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; font-family: var(--font-body); background: var(--canvas); color: var(--text); font-size: 14.5px; line-height: 1.5; }
+h1, h2, h3, h4 { font-family: var(--font-head); margin: 0; color: var(--ink); }
+a { color: var(--steel); text-decoration: none; }
+button, input, select, textarea { font-family: inherit; font-size: inherit; }
+#app-shell { display: flex; min-height: 100vh; }
+.sidebar { width: 240px; background: var(--ink); color: #E7EBF3; display: flex; flex-direction: column; flex-shrink: 0; position: sticky; top: 0; height: 100vh; }
+.brand { display: flex; align-items: center; gap: 12px; padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.brand-mark { width: 42px; height: 42px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #fff; flex-shrink: 0; box-shadow: 0 0 0 2px rgba(255,255,255,0.15); }
+.brand-mark img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.brand-name { font-family: var(--font-head); font-weight: 600; font-size: 15px; color: #fff; }
+.brand-sub { font-size: 11.5px; color: #9BA9C4; margin-top: 2px; }
+.nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; }
+.nav-link { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; color: #C4CDE0; font-size: 14px; font-weight: 500; transition: background 0.15s, color 0.15s; }
+.nav-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.nav-link.active { background: var(--steel); color: #fff; font-weight: 600; }
+.nav-icon { width: 18px; height: 18px; flex-shrink: 0; }
+.sidebar-footer { padding: 16px 20px 22px; font-size: 11px; color: #7C8AA8; border-top: 1px solid rgba(255,255,255,0.08); line-height: 1.5; }
+.session-info { font-size: 12px; color: #C7D0E0; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.session-info strong { color: #fff; font-weight: 600; word-break: break-all; }
+.session-info a { color: #8FB6E0; }
+.session-info a:hover { color: #fff; }
+.mobile-topbar { display: none; align-items: center; gap: 12px; background: var(--ink); color: #fff; padding: 14px 16px; position: sticky; top: 0; z-index: 20; }
+.menu-toggle { background: none; border: none; color: #fff; padding: 4px; cursor: pointer; }
+.menu-toggle svg { width: 22px; height: 22px; }
+.main { flex: 1; padding: 32px 36px; max-width: 1400px; width: 100%; }
+.page-header { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 16px; margin-bottom: 28px; }
+.page-header h1 { font-size: 24px; }
+.page-header p { color: var(--muted); margin: 6px 0 0; font-size: 13.5px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 8px; border: 1px solid transparent; font-weight: 600; font-size: 13.5px; cursor: pointer; transition: transform 0.1s, box-shadow 0.15s, background 0.15s; white-space: nowrap; }
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--ink); color: #fff; }
+.btn-primary:hover { background: #1d2f52; }
+.btn-accent { background: var(--steel); color: #fff; }
+.btn-accent:hover { background: var(--steel-dark); color: #fff; }
+.btn-outline { background: #fff; color: var(--ink); border-color: var(--border); }
+.btn-outline:hover { border-color: var(--steel); color: var(--steel); }
+.btn-danger { background: #FDECEC; color: var(--danger-dark); }
+.btn-danger:hover { background: var(--danger); color: #fff; }
+.btn-sm { padding: 6px 12px; font-size: 12.5px; }
+.btn svg { width: 15px; height: 15px; }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); padding: 22px; }
+.table-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 18px; }
+.totals-bar { font-size: 13.5px; color: var(--text); margin-bottom: 14px; padding: 10px 14px; background: var(--canvas); border-radius: 8px; border: 1px solid var(--border); }
+.totals-bar strong { color: var(--ink); font-family: var(--font-head); }
+.search-box { position: relative; flex: 1; min-width: 220px; }
+.search-box svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--muted); pointer-events: none; }
+.search-box input { width: 100%; padding: 10px 34px 10px 36px; border: 1px solid var(--border); border-radius: 8px; }
+.search-clear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; border: none; background: none; cursor: pointer; color: var(--muted); border-radius: 50%; display: none; align-items: center; justify-content: center; }
+.search-clear:hover { background: var(--canvas); color: var(--text); }
+.search-clear.show { display: flex; }
+.search-clear svg { width: 14px; height: 14px; }
+.table-toolbar select { padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+.table-wrap { position: relative; overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); background: #fff; }
+table.data-table { width: 100%; border-collapse: collapse; font-size: 13.3px; min-width: 900px; }
+table.data-table th:first-child, table.data-table td:first-child { position: sticky; left: 0; background: #fff; z-index: 2; box-shadow: 2px 0 4px -2px rgba(20,33,61,0.12); }
+table.data-table thead th:first-child { background: var(--canvas); z-index: 3; }
+table.data-table th:last-child, table.data-table td:last-child { position: sticky; right: 0; background: #fff; z-index: 2; box-shadow: -2px 0 4px -2px rgba(20,33,61,0.12); }
+table.data-table thead th:last-child { background: var(--canvas); z-index: 3; }
+table.data-table thead th { text-align: left; background: var(--canvas); color: var(--muted); font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.03em; padding: 12px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+table.data-table tbody td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; white-space: nowrap; }
+table.data-table tbody tr:last-child td { border-bottom: none; }
+table.data-table tbody tr:hover { background: #FAFBFD; }
+.row-actions { display: flex; gap: 6px; }
+.empty-state { text-align: center; padding: 48px 20px; color: var(--muted); }
+.empty-state svg { width: 40px; height: 40px; margin-bottom: 12px; color: var(--border); }
+.status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; background: color-mix(in srgb, var(--badge-color) 14%, white); color: var(--badge-color); white-space: nowrap; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--badge-color); }
+#toast-container { position: fixed; top: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 10px; }
+.toast { background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 8px; font-size: 13.5px; font-weight: 500; box-shadow: var(--shadow); opacity: 0; transform: translateY(-8px); transition: opacity 0.25s, transform 0.25s; max-width: 320px; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast-success { background: #0F5D46; }
+.toast-error { background: var(--danger-dark); }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(20, 33, 61, 0.5); display: flex; align-items: center; justify-content: center; z-index: 150; padding: 20px; }
+.modal { background: #fff; border-radius: var(--radius); padding: 26px; max-width: 400px; width: 100%; box-shadow: var(--shadow); }
+.modal h3 { font-size: 17px; margin-bottom: 8px; }
+.modal p { color: var(--muted); font-size: 13.5px; margin: 0 0 20px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.loading-row { text-align: center; padding: 40px; color: var(--muted); }
+.spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--steel); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 10px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 900px) {
+  .sidebar { position: fixed; left: 0; top: 0; height: 100vh; z-index: 30; transform: translateX(-100%); transition: transform 0.2s ease; }
+  .sidebar.open { transform: translateX(0); }
+  .mobile-topbar { display: flex; }
+  .main { padding: 20px; }
+}
+#printReport { display: none; }
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+  #app-shell { display: none !important; }
+  #printReport { display: block !important; }
+}
+#printReport .report-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid var(--ink); padding-bottom: 16px; margin-bottom: 18px; }
+#printReport .report-header .company-block { display: flex; align-items: center; gap: 12px; }
+#printReport .report-header .company-logo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+#printReport .report-header .company { font-family: var(--font-head); font-weight: 700; font-size: 18px; color: var(--ink); }
+#printReport .report-header .address { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+#printReport .report-title { text-align: right; }
+#printReport .report-title h1 { font-family: var(--font-head); font-size: 16px; margin: 0; color: var(--ink); }
+#printReport .report-title .meta { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+#printReport table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+#printReport th { text-align: left; background: #EEF2F7; color: var(--ink); font-weight: 700; padding: 6px 7px; border-bottom: 2px solid var(--ink); white-space: nowrap; }
+#printReport td { padding: 6px 7px; border-bottom: 1px solid var(--border); }
+#printReport tr.note-row td { padding: 4px 7px 8px 7px; border-bottom: 1px solid var(--border); background: #FAFBFC; font-style: italic; color: var(--muted); }
+#printReport .report-footer { margin-top: 16px; font-size: 10.5px; color: var(--muted); text-align: right; }
+</style>
+</head>
+<body>
+
+<div id="app-shell"></div>
+<div id="printReport"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/**
+ * Paste your deployed Google Apps Script Web App URL below.
+ * Deploy > New deployment > Web app > Execute as: Me > Who has access: Anyone
+ * The URL ends with /exec
+ */
+const API_URL = 'https://script.google.com/macros/s/AKfycbxFb-wqcSjnSsP_jPqv_6B1FG912MRO7G2keSJCSgGB6_-n4kQ3SU7OPBpGM7gqr1g/exec';
+
+const COMPANY = {
+  name: 'Bark Ornament Private Limited',
+  address: 'No. 59A Bekkegama, Panadura'
+};
+
+const STATUS_OPTIONS = [
+  'New Lead',
+  'Existing Customer'
+];
+
+// Order reflects the sales pipeline, used for the funnel visual on the dashboard.
+const STATUS_PIPELINE_ORDER = [
+  'New Lead',
+  'Existing Customer'
+];
+
+const STATUS_COLORS = {
+  'New Lead': '#94A3B8',
+  'Existing Customer': '#10B981'
+};
+
+// How this customer/lead first came in. "Other" reveals a free-text box
+// so anything not on the list can still be captured.
+const SOURCE_OPTIONS = [
+  'WhatsApp',
+  'Facebook',
+  'Instagram',
+  'Email',
+  'Phone Call',
+  'Website',
+  'Referral',
+  'Walk-in',
+  'Other'
+];
+
+// Currencies offered on the Invoice / Quotation forms. Matches the
+// currencies actually used across customer records (LKR for Local,
+// USD for Maldives/Seychelles).
+const CURRENCY_LIST = [
+  { code: 'LKR', name: 'Sri Lankan Rupee' },
+  { code: 'USD', name: 'US Dollar' }
+];
+
+// Must match PO_STATUSES in the Apps Script backend exactly.
+const PO_STATUSES = ['Not delivered', 'Partially delivered', 'Complete'];
+
+/* ---------- Country / currency / serial-prefix configuration ----------
+   Each country has a serial-number prefix (e.g. MAL-0001) and a currency.
+   Defaults cover the current business segments; more can be added from
+   the Add Customer form ("+ Add New Country") without touching code.
+   NOTE: custom countries are stored in this browser's localStorage, so
+   they are per-device for now — see chat notes on syncing this via the
+   Apps Script backend if the whole team needs to see new countries. */
+
+const DEFAULT_COUNTRIES = [
+  { name: 'Maldives', prefix: 'MAL', currency: 'USD' },
+  { name: 'Seychelles', prefix: 'SEY', currency: 'USD' },
+  { name: 'Local', prefix: 'LOC', currency: 'LKR' }
+];
+
+const CountryConfig = {
+  _key: 'bo_custom_countries',
+  _customList() {
+    try {
+      const raw = localStorage.getItem(this._key);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  },
+  getAll() {
+    const map = {};
+    DEFAULT_COUNTRIES.forEach(function (c) { map[c.name.toLowerCase()] = c; });
+    this._customList().forEach(function (c) { map[c.name.toLowerCase()] = c; });
+    return Object.values(map).sort(function (a, b) { return a.name.localeCompare(b.name); });
+  },
+  find(name) {
+    const key = String(name || '').toLowerCase();
+    return this.getAll().find(function (c) { return c.name.toLowerCase() === key; });
+  },
+  add(entry) {
+    const name = (entry.name || '').trim();
+    const prefix = (entry.prefix || '').trim().toUpperCase();
+    const currency = (entry.currency || '').trim().toUpperCase();
+    if (!name || !prefix || !currency) throw new Error('Country name, serial prefix, and currency are all required.');
+    if (!/^[A-Z]{2,5}$/.test(prefix)) throw new Error('Prefix should be 2-5 letters, e.g. MAL, SEY, MAU.');
+    if (!/^[A-Z]{3}$/.test(currency)) throw new Error('Currency should be a 3-letter code, e.g. USD, LKR.');
+    const existing = this.getAll();
+    if (existing.some(function (c) { return c.name.toLowerCase() === name.toLowerCase(); })) throw new Error('That country already exists.');
+    if (existing.some(function (c) { return c.prefix.toLowerCase() === prefix.toLowerCase(); })) throw new Error('That serial prefix is already in use — pick a different one.');
+    const list = this._customList();
+    const record = { name: name, prefix: prefix, currency: currency };
+    list.push(record);
+    localStorage.setItem(this._key, JSON.stringify(list));
+    return record;
+  }
+};
+
+// Given the current customer list and a country's prefix, work out the next
+// serial number in sequence, e.g. existing MAL-0001, MAL-0002 -> MAL-0003.
+function nextSerialNo(customers, prefix) {
+  let max = 0;
+  (customers || []).forEach(function (c) {
+    if (c.serialNo && c.serialNo.indexOf(prefix + '-') === 0) {
+      const n = parseInt(c.serialNo.slice(prefix.length + 1), 10);
+      if (!isNaN(n) && n > max) max = n;
+    }
+  });
+  return prefix + '-' + String(max + 1).padStart(4, '0');
+}
+
+/* ============================================================
+   Bark Ornament — Customer Management System
+   Shared utilities: navigation shell, API calls, helpers
+   ============================================================ */
+
+/* ---------- Navigation shell ---------- */
+
+function renderShell(activePage) {
+  const session = Session.get();
+  const isAdmin = !!session && session.role === 'admin';
+
+  const nav = [
+    { key: 'dashboard', label: 'Dashboard', href: 'index.html', icon: 'grid' },
+    { key: 'register', label: 'Add Customer', href: 'register.html', icon: 'plus' },
+    { key: 'customers', label: 'Customers', href: 'customers.html', icon: 'list' },
+    { key: 'quotations', label: 'Quotations', href: 'quotations.html', icon: 'quote' },
+    { key: 'invoices', label: 'Invoices', href: 'invoices.html', icon: 'invoice' },
+    { key: 'pos', label: 'Purchase Orders', href: 'pos.html', icon: 'po' }
+  ];
+  if (isAdmin) {
+    nav.push({ key: 'team', label: 'Team Access', href: 'login.html', icon: 'team' });
+  }
+
+  const icons = {
+    grid: '<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    quote: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6M9 11h3"/>',
+    invoice: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 17h6M9 13h6"/>',
+    po: '<path d="M9 14l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.06 0 3.96.7 5.47 1.86"/><path d="M16 4l2 2-2 2"/>',
+    team: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>'
+  };
+
+  const navHtml = nav.map(function (item) {
+    const active = item.key === activePage ? ' active' : '';
+    return '<a class="nav-link' + active + '" href="' + item.href + '">' +
+      '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + icons[item.icon] + '</svg>' +
+      '<span>' + item.label + '</span></a>';
+  }).join('');
+
+  const shell = document.getElementById('app-shell');
+  shell.innerHTML =
+    '<aside class="sidebar">' +
+    '  <div class="brand">' +
+    '    <div class="brand-mark"><img src="logo.png" alt="Bark Ornament logo"></div>' +
+    '    <div class="brand-text">' +
+    '      <div class="brand-name">Bark Ornament</div>' +
+    '      <div class="brand-sub">Customer Management</div>' +
+    '    </div>' +
+    '  </div>' +
+    '  <nav class="nav">' + navHtml + '</nav>' +
+    '  <div class="sidebar-footer">' +
+    (session ?
+      '<div class="session-info"><strong>' + escapeHtml(session.email) + '</strong><br>' +
+      (isAdmin ? 'Admin' : 'Team member') + ' &middot; <a href="#" id="logoutLink">Log out</a></div>' : '') +
+    COMPANY.name + '<br>' + COMPANY.address +
+    '</div>' +
+    '</aside>' +
+    '<div class="mobile-topbar">' +
+    '  <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">' +
+    '    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>' +
+    '  </button>' +
+    '  <span class="brand-name">Bark Ornament</span>' +
+    '</div>' +
+    '<main class="main" id="main-content"></main>';
+
+  const logoutLink = document.getElementById('logoutLink');
+  if (logoutLink) {
+    logoutLink.addEventListener('click', function (e) {
+      e.preventDefault();
+      Session.logout();
+    });
+  }
+
+  const toggle = document.getElementById('menuToggle');
+  if (toggle) {
+    toggle.addEventListener('click', function () {
+      document.querySelector('.sidebar').classList.toggle('open');
+    });
+  }
+}
+
+/* ---------- Toast notifications ---------- */
+
+function showToast(message, type) {
+  type = type || 'info';
+  let container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-' + type;
+  toast.textContent = message;
+  container.appendChild(toast);
+  requestAnimationFrame(function () { toast.classList.add('show'); });
+  setTimeout(function () {
+    toast.classList.remove('show');
+    setTimeout(function () { toast.remove(); }, 300);
+  }, 3200);
+}
+
+/* ---------- Session / auth ----------
+   Login is required to use this app. A logged-in session (email, role,
+   signed token, expiry) is cached in localStorage so people stay signed
+   in across visits until the token expires (server-side, default 12h)
+   or they log out. The role check here only controls what UI is shown —
+   the real security boundary is the token check the backend does on
+   every add/update/delete request. */
+const Session = {
+  _key: 'bo_session',
+  get() {
+    try {
+      const raw = localStorage.getItem(this._key);
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      if (!s || !s.token || !s.exp || Date.now() > s.exp) { this.clear(); return null; }
+      return s;
+    } catch (e) { return null; }
+  },
+  set(s) { try { localStorage.setItem(this._key, JSON.stringify(s)); } catch (e) { /* ignore */ } },
+  clear() { try { localStorage.removeItem(this._key); } catch (e) { /* ignore */ } },
+  isAdmin() { const s = this.get(); return !!s && s.role === 'admin'; },
+  /** Redirects to login.html if there's no valid session; returns the session otherwise. */
+  requireLogin() {
+    const s = this.get();
+    if (!s) {
+      const here = encodeURIComponent(location.pathname.split('/').pop() + location.search);
+      window.location.href = 'login.html?redirect=' + here;
+      return null;
+    }
+    return s;
+  },
+  logout() {
+    this.clear();
+    window.location.href = 'login.html';
+  }
+};
+
+/* ---------- API layer ---------- */
+
+const Api = {
+  async getCustomers() {
+    if (!API_URL || API_URL.indexOf('PASTE_YOUR') === 0) {
+      throw new Error('API_URL is not configured.');
+    }
+    const s = Session.get();
+    const url = API_URL + '?token=' + encodeURIComponent(s ? s.token : '');
+    const res = await fetch(url, { method: 'GET' });
+    const json = await res.json();
+    if (!json.success) { handleAuthError(json.error); throw new Error(json.error || 'Failed to load customers'); }
+    return json.data;
+  },
+
+  async addCustomer(data) {
+    return this._post({ action: 'add', data: data });
+  },
+
+  async updateCustomer(data) {
+    return this._post({ action: 'update', data: data });
+  },
+
+  async deleteCustomer(serialNo) {
+    return this._post({ action: 'delete', serialNo: serialNo });
+  },
+
+  async getPOs() {
+    return this._get('pos');
+  },
+
+  async addPO(data) {
+    return this._post({ action: 'addPO', data: data });
+  },
+
+  async updatePO(data) {
+    return this._post({ action: 'updatePO', data: data });
+  },
+
+  async deletePO(poNo) {
+    return this._post({ action: 'deletePO', poNo: poNo });
+  },
+
+  async getInvoices() {
+    return this._get('invoices');
+  },
+
+  async addInvoice(data) {
+    return this._post({ action: 'addInvoice', data: data });
+  },
+
+  async updateInvoice(data) {
+    return this._post({ action: 'updateInvoice', data: data });
+  },
+
+  async deleteInvoice(invoiceNo) {
+    return this._post({ action: 'deleteInvoice', invoiceNo: invoiceNo });
+  },
+
+  async _get(action) {
+    const s = Session.get();
+    const url = API_URL + '?action=' + encodeURIComponent(action) + '&token=' + encodeURIComponent(s ? s.token : '');
+    const res = await fetch(url, { method: 'GET' });
+    const json = await res.json();
+    if (!json.success) { handleAuthError(json.error); throw new Error(json.error || ('Failed to load ' + action)); }
+    return json.data;
+  },
+
+  async _post(body) {
+    const s = Session.get();
+    body.token = s ? s.token : '';
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids CORS preflight on Apps Script
+      body: JSON.stringify(body)
+    });
+    const json = await res.json();
+    if (!json.success) { handleAuthError(json.error); throw new Error(json.error || 'Request failed'); }
+    return json.data;
+  }
+};
+
+/** If the backend rejected a call because the session is invalid/expired or
+ *  the action needed admin rights, act accordingly instead of just showing
+ *  a raw error string. */
+function handleAuthError(errorCode) {
+  if (errorCode === 'AUTH_REQUIRED') {
+    Session.clear();
+    showToast('Your session has expired — please log in again.', 'error');
+    setTimeout(function () { window.location.href = 'login.html'; }, 1200);
+  }
+}
+
+/* ---------- Formatting helpers ---------- */
+
+function formatCurrency(value, currency) {
+  const num = Number(value) || 0;
+  return (currency || 'USD') + ' ' + num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function formatDate(value) {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return String(value);
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function statusBadge(status) {
+  const color = STATUS_COLORS[status] || '#9CA3AF';
+  return '<span class="status-badge" style="--badge-color:' + color + '">' +
+    '<span class="status-dot"></span>' + status + '</span>';
+}
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/* ---------- Simple client-side cache shared across pages in one session ---------- */
+
+const CustomerStore = {
+  _data: null,
+  async load(force) {
+    if (this._data && !force) return this._data;
+    this._data = await Api.getCustomers();
+    return this._data;
+  },
+  invalidate() { this._data = null; }
+};
+
+const POStore = {
+  _data: null,
+  async load(force) {
+    if (this._data && !force) return this._data;
+    this._data = await Api.getPOs();
+    return this._data;
+  },
+  invalidate() { this._data = null; }
+};
+
+const InvoiceStore = {
+  _data: null,
+  async load(force) {
+    if (this._data && !force) return this._data;
+    this._data = await Api.getInvoices();
+    return this._data;
+  },
+  invalidate() { this._data = null; }
+};
+
+</script>
+<script>
+const currentSession = Session.requireLogin();
+if (!currentSession) { throw new Error('Redirecting to login…'); }
+
+renderShell('pos');
+
+const mainEl = document.getElementById('main-content');
+mainEl.innerHTML =
+  '<div class="page-header">' +
+  '  <div><h1>Purchase Orders</h1><p>Search, filter, and manage all purchase orders.</p></div>' +
+  '  <div style="display:flex;gap:10px;flex-wrap:wrap">' +
+  '    <button class="btn btn-outline" id="printBtn">' +
+  '      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>' +
+  '      Print / Save as PDF' +
+  '    </button>' +
+  '    <button class="btn btn-outline" id="exportBtn">' +
+  '      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>' +
+  '      Export to Excel' +
+  '    </button>' +
+  '    <a href="add-po.html" class="btn btn-accent">' +
+  '      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>' +
+  '      Add PO' +
+  '    </a>' +
+  '  </div>' +
+  '</div>' +
+
+  '<div class="card">' +
+  '  <div class="table-toolbar">' +
+  '    <div class="search-box">' +
+  '      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>' +
+  '      <input type="text" id="searchInput" placeholder="Search by PO no, customer, or remarks…">' +
+  '      <button type="button" class="search-clear" id="searchClearBtn" title="Clear search" aria-label="Clear search">' +
+  '        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>' +
+  '      </button>' +
+  '    </div>' +
+  '    <select id="filterCustomer"><option value="">All Customers</option></select>' +
+  '    <select id="filterMonth"><option value="">All Months</option></select>' +
+  '    <select id="filterStatus"><option value="">All Statuses</option></select>' +
+  '    <select id="filterCurrency"><option value="">All Currencies</option></select>' +
+  '    <select id="filterResponsible"><option value="">All Responsible Persons</option></select>' +
+  '    <button type="button" class="btn btn-outline btn-sm" id="clearFiltersBtn">Clear Filters</button>' +
+  '  </div>' +
+  '  <div class="totals-bar" id="totalsBar"></div>' +
+  '  <div class="table-wrap">' +
+  '    <table class="data-table">' +
+  '      <thead><tr>' +
+  '        <th>PO No</th><th>Customer</th><th>Date</th><th>Value</th><th>Status</th>' +
+  '        <th>Responsible Person</th><th>Remarks</th><th></th>' +
+  '      </tr></thead>' +
+  '      <tbody id="tableBody"><tr><td colspan="8" class="loading-row"><div class="spinner"></div>Loading purchase orders…</td></tr></tbody>' +
+  '    </table>' +
+  '  </div>' +
+  '</div>';
+
+let allPOs = [];
+let filtered = [];
+let pendingDelete = null;
+
+const PO_STATUS_COLORS = {
+  'Not delivered': '#EF4444',
+  'Partially delivered': '#F59E0B',
+  'Complete': '#10B981'
+};
+
+function poStatusBadge(status) {
+  const color = PO_STATUS_COLORS[status] || '#9CA3AF';
+  return '<span class="status-badge" style="--badge-color:' + color + '">' +
+    '<span class="status-dot"></span>' + escapeHtml(status) + '</span>';
+}
+
+function remarksPreview(remarks) {
+  if (!remarks) return '<span style="color:var(--muted);">—</span>';
+  const short = remarks.length > 40 ? remarks.slice(0, 40) + '…' : remarks;
+  return '<span title="' + escapeHtml(remarks) + '" style="cursor:help;">' + escapeHtml(short) + '</span>';
+}
+
+function monthKey(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+function monthLabel(key) {
+  const parts = key.split('-');
+  const d = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
+}
+
+function populateFilterOptions() {
+  function uniqueSorted(key) { return [...new Set(allPOs.map(q => q[key]).filter(Boolean))].sort(); }
+  const customerSel = document.getElementById('filterCustomer');
+  const monthSel = document.getElementById('filterMonth');
+  const statusSel = document.getElementById('filterStatus');
+  const currencySel = document.getElementById('filterCurrency');
+  const responsibleSel = document.getElementById('filterResponsible');
+  uniqueSorted('customerName').forEach(v => customerSel.insertAdjacentHTML('beforeend', '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>'));
+  const months = [...new Set(allPOs.map(q => monthKey(q.poDate)).filter(Boolean))].sort().reverse();
+  months.forEach(k => monthSel.insertAdjacentHTML('beforeend', '<option value="' + k + '">' + monthLabel(k) + '</option>'));
+  PO_STATUSES.forEach(v => statusSel.insertAdjacentHTML('beforeend', '<option value="' + v + '">' + v + '</option>'));
+  uniqueSorted('currency').forEach(v => currencySel.insertAdjacentHTML('beforeend', '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>'));
+  uniqueSorted('responsiblePerson').forEach(v => responsibleSel.insertAdjacentHTML('beforeend', '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>'));
+}
+
+function applyFilters() {
+  const searchInput = document.getElementById('searchInput');
+  const q = searchInput.value.trim().toLowerCase();
+  const customer = document.getElementById('filterCustomer').value;
+  const month = document.getElementById('filterMonth').value;
+  const status = document.getElementById('filterStatus').value;
+  const currency = document.getElementById('filterCurrency').value;
+  const responsible = document.getElementById('filterResponsible').value;
+  document.getElementById('searchClearBtn').classList.toggle('show', q.length > 0);
+  const qWords = q.split(/\s+/).filter(Boolean);
+
+  filtered = allPOs.filter(function (r) {
+    const haystack = [r.poNo, r.customerName, r.responsiblePerson, r.remarks].filter(Boolean).join(' ').toLowerCase();
+    const matchesQ = qWords.length === 0 || qWords.every(w => haystack.includes(w));
+    const matchesCustomer = !customer || r.customerName === customer;
+    const matchesMonth = !month || monthKey(r.poDate) === month;
+    const matchesStatus = !status || r.status === status;
+    const matchesCurrency = !currency || r.currency === currency;
+    const matchesResponsible = !responsible || r.responsiblePerson === responsible;
+    return matchesQ && matchesCustomer && matchesMonth && matchesStatus && matchesCurrency && matchesResponsible;
+  });
+  renderTable();
+  renderTotals();
+}
+
+function renderTotals() {
+  const bar = document.getElementById('totalsBar');
+  if (!filtered.length) { bar.innerHTML = ''; return; }
+  const sums = {};
+  filtered.forEach(function (r) {
+    const cur = r.currency || 'USD';
+    sums[cur] = (sums[cur] || 0) + (Number(r.value) || 0);
+  });
+  const parts = Object.keys(sums).sort().map(function (cur) {
+    return '<strong>' + formatCurrency(sums[cur], cur) + '</strong>';
+  });
+  bar.innerHTML = 'Total (' + filtered.length + (filtered.length === 1 ? ' purchase order' : ' purchase orders') + '): ' + parts.join(' &nbsp;+&nbsp; ');
+}
+
+function clearAllFilters() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('filterCustomer').value = '';
+  document.getElementById('filterMonth').value = '';
+  document.getElementById('filterStatus').value = '';
+  document.getElementById('filterCurrency').value = '';
+  document.getElementById('filterResponsible').value = '';
+  applyFilters();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>' +
+      '<div>No purchase orders match your search or filters.</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(function (r) {
+    return '<tr>' +
+      '<td><strong>' + escapeHtml(r.poNo) + '</strong></td>' +
+      '<td>' + escapeHtml(r.customerName) + '</td>' +
+      '<td>' + formatDate(r.poDate) + '</td>' +
+      '<td>' + formatCurrency(r.value, r.currency) + '</td>' +
+      '<td>' + poStatusBadge(r.status) + '</td>' +
+      '<td>' + escapeHtml(r.responsiblePerson) + '</td>' +
+      '<td>' + remarksPreview(r.remarks) + '</td>' +
+      '<td><div class="row-actions">' +
+      (currentSession.role === 'admin' ? '  <a class="btn btn-outline btn-sm" href="add-po.html?edit=' + encodeURIComponent(r.poNo) + '" title="Edit">Edit</a>' : '') +
+      '  <a class="btn btn-outline btn-sm" href="po-detail.html?id=' + encodeURIComponent(r.poNo) + '" title="Print">Print</a>' +
+      (currentSession.role === 'admin' ? '  <button class="btn btn-danger btn-sm" data-delete="' + escapeHtml(r.poNo) + '" title="Delete">Delete</button>' : '') +
+      '</div></td>' +
+      '</tr>';
+  }).join('');
+
+  tbody.querySelectorAll('[data-delete]').forEach(function (btn) {
+    btn.addEventListener('click', function () { confirmDelete(btn.getAttribute('data-delete')); });
+  });
+  updateScrollHint();
+}
+
+function updateScrollHint() {
+  const wrap = document.querySelector('.table-wrap');
+  if (!wrap) return;
+  if (wrap.scrollWidth > wrap.clientWidth + 4) wrap.classList.add('has-more');
+  else wrap.classList.remove('has-more');
+}
+window.addEventListener('resize', updateScrollHint);
+
+function confirmDelete(poNo) {
+  pendingDelete = poNo;
+  const record = allPOs.find(r => r.poNo === poNo);
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML =
+    '<div class="modal">' +
+    '  <h3>Delete PO?</h3>' +
+    '  <p>This will permanently remove <strong>' + escapeHtml(poNo) + '</strong>' + (record ? ' (' + escapeHtml(record.customerName) + ')' : '') + ' from the sheet. This cannot be undone.</p>' +
+    '  <div class="modal-actions">' +
+    '    <button class="btn btn-outline" id="cancelDelete">Cancel</button>' +
+    '    <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>' +
+    '  </div>' +
+    '</div>';
+  document.body.appendChild(backdrop);
+  document.getElementById('cancelDelete').addEventListener('click', function () { backdrop.remove(); });
+  backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
+  document.getElementById('confirmDeleteBtn').addEventListener('click', async function () {
+    const btn = document.getElementById('confirmDeleteBtn');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      await Api.deletePO(pendingDelete);
+      showToast('PO deleted.', 'success');
+      POStore.invalidate();
+      backdrop.remove();
+      await loadPOs();
+    } catch (err) {
+      showToast('Error deleting: ' + err.message, 'error');
+      btn.disabled = false; btn.textContent = 'Delete';
+    }
+  });
+}
+
+function exportToExcel() {
+  if (filtered.length === 0) { showToast('No records to export.', 'error'); return; }
+  const rows = filtered.map(function (r) {
+    return {
+      'PO No': r.poNo, 'Customer': r.customerName, 'Date': formatDate(r.poDate),
+      'Value': r.value, 'Currency': r.currency, 'Status': r.status,
+      'Responsible Person': r.responsiblePerson, 'Remarks': r.remarks
+    };
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Purchase Orders');
+  XLSX.writeFile(wb, 'Bark_Ornament_POs_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+}
+
+async function loadPOs(force) {
+  const tbody = document.getElementById('tableBody');
+  try {
+    allPOs = await POStore.load(force);
+    if (document.getElementById('filterStatus').children.length === 1) populateFilterOptions();
+    applyFilters();
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state" style="color:var(--danger-dark)">Error loading data: ' + escapeHtml(err.message) + '</div></td></tr>';
+  }
+}
+
+function activeFilterSummary() {
+  const parts = [];
+  const customer = document.getElementById('filterCustomer').value;
+  const month = document.getElementById('filterMonth').value;
+  const status = document.getElementById('filterStatus').value;
+  const currency = document.getElementById('filterCurrency').value;
+  const responsible = document.getElementById('filterResponsible').value;
+  const q = document.getElementById('searchInput').value.trim();
+  if (customer) parts.push('Customer: ' + customer);
+  if (month) parts.push('Month: ' + monthLabel(month));
+  if (status) parts.push('Status: ' + status);
+  if (currency) parts.push('Currency: ' + currency);
+  if (responsible) parts.push('Responsible: ' + responsible);
+  if (q) parts.push('Search: "' + q + '"');
+  return parts.length ? parts.join('  \u00b7  ') : 'All purchase orders';
+}
+
+function generatePrintReport() {
+  if (filtered.length === 0) { showToast('No records to print — adjust your filters first.', 'error'); return; }
+  const rowsHtml = filtered.map(function (r) {
+    const mainRow = '<tr>' +
+      '<td>' + escapeHtml(r.poNo) + '</td>' +
+      '<td>' + escapeHtml(r.customerName) + '</td>' +
+      '<td>' + formatDate(r.poDate) + '</td>' +
+      '<td>' + formatCurrency(r.value, r.currency) + '</td>' +
+      '<td>' + escapeHtml(r.status) + '</td>' +
+      '<td>' + escapeHtml(r.responsiblePerson) + '</td>' +
+      '</tr>';
+    const noteRow = r.remarks ? '<tr class="note-row"><td colspan="6"><strong>Remarks:</strong> ' + escapeHtml(r.remarks) + '</td></tr>' : '';
+    return mainRow + noteRow;
+  }).join('');
+
+  const sums = {};
+  filtered.forEach(function (r) {
+    const cur = r.currency || 'USD';
+    sums[cur] = (sums[cur] || 0) + (Number(r.value) || 0);
+  });
+  const totalsHtml = Object.keys(sums).sort().map(function (cur) {
+    return '<tr class="totals-row"><td colspan="3" style="text-align:right;"><strong>Total (' + escapeHtml(cur) + ')</strong></td><td><strong>' + formatCurrency(sums[cur], cur) + '</strong></td><td colspan="2"></td></tr>';
+  }).join('');
+
+  document.getElementById('printReport').innerHTML =
+    '<div class="report-header">' +
+    '  <div class="company-block"><img class="company-logo" src="logo.png" alt="Bark Ornament logo"><div><div class="company">' + escapeHtml(COMPANY.name) + '</div><div class="address">' + escapeHtml(COMPANY.address) + '</div></div></div>' +
+    '  <div class="report-title"><h1>Purchase Order Report</h1><div class="meta">' + escapeHtml(activeFilterSummary()) + '</div>' +
+    '  <div class="meta">' + filtered.length + ' record' + (filtered.length === 1 ? '' : 's') + '</div></div>' +
+    '</div>' +
+    '<table><thead><tr><th>PO No</th><th>Customer</th><th>Date</th><th>Value</th><th>Status</th><th>Responsible</th></tr></thead>' +
+    '<tbody>' + rowsHtml + totalsHtml + '</tbody></table>' +
+    '<div class="report-footer">Generated on ' + formatDate(new Date()) + ' — ' + escapeHtml(COMPANY.name) + '</div>';
+
+  window.print();
+}
+
+document.getElementById('searchInput').addEventListener('input', applyFilters);
+document.getElementById('searchClearBtn').addEventListener('click', function () {
+  const input = document.getElementById('searchInput');
+  input.value = ''; applyFilters(); input.focus();
+});
+document.getElementById('clearFiltersBtn').addEventListener('click', clearAllFilters);
+document.getElementById('filterCustomer').addEventListener('change', applyFilters);
+document.getElementById('filterMonth').addEventListener('change', applyFilters);
+document.getElementById('filterStatus').addEventListener('change', applyFilters);
+document.getElementById('filterCurrency').addEventListener('change', applyFilters);
+document.getElementById('filterResponsible').addEventListener('change', applyFilters);
+document.getElementById('exportBtn').addEventListener('click', exportToExcel);
+document.getElementById('printBtn').addEventListener('click', generatePrintReport);
+
+loadPOs();
+</script>
+</body>
+</html>
