@@ -605,8 +605,14 @@ function validate() {
 }
 
 async function init() {
+  // Fire both requests at once — the invoice lookup doesn't actually
+  // depend on the customer list, so there's no need to wait for one
+  // before starting the other.
+  const customersPromise = CustomerStore.load();
+  const invoicesPromise = isEditMode ? InvoiceStore.load() : null;
+
   try {
-    customers = await CustomerStore.load();
+    customers = await customersPromise;
   } catch (err) {
     showToast('Error loading customers: ' + err.message, 'error');
     customers = [];
@@ -615,7 +621,7 @@ async function init() {
   let record = null;
   if (isEditMode) {
     try {
-      const invoices = await InvoiceStore.load();
+      const invoices = await invoicesPromise;
       record = invoices.find(i => i.invoiceNo === editingInvoiceNo);
       if (!record) { showToast('Invoice not found.', 'error'); window.location.href = 'invoices.html'; return; }
     } catch (err) {
