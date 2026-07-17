@@ -70,6 +70,8 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; }
 .search-clear.show { display: flex; }
 .search-clear svg { width: 14px; height: 14px; }
 .table-toolbar select { padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+.table-toolbar input[type="date"] { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+.date-filter-label { font-size: 12.5px; color: var(--muted); }
 .table-wrap { position: relative; overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); background: #fff; }
 table.data-table { width: 100%; border-collapse: collapse; font-size: 13.3px; min-width: 800px; }
 table.data-table th:first-child, table.data-table td:first-child { position: sticky; left: 0; background: #fff; z-index: 2; box-shadow: 2px 0 4px -2px rgba(20,33,61,0.12); }
@@ -577,7 +579,10 @@ mainEl.innerHTML =
   '      </button>' +
   '    </div>' +
   '    <select id="filterCustomer"><option value="">All Customers</option></select>' +
-  '    <select id="filterMonth"><option value="">All Months</option></select>' +
+  '    <span class="date-filter-label">From</span>' +
+  '    <input type="date" id="filterDateFrom">' +
+  '    <span class="date-filter-label">To</span>' +
+  '    <input type="date" id="filterDateTo">' +
   '    <select id="filterCurrency"><option value="">All Currencies</option></select>' +
   '    <select id="filterResponsible"><option value="">All Responsible Persons</option></select>' +
   '    <button type="button" class="btn btn-outline btn-sm" id="clearFiltersBtn">Clear Filters</button>' +
@@ -586,9 +591,9 @@ mainEl.innerHTML =
   '  <div class="table-wrap">' +
   '    <table class="data-table">' +
   '      <thead><tr>' +
-  '        <th>Invoice No</th><th>Customer</th><th>Date</th><th>Value</th><th>Responsible Person</th><th></th>' +
+  '        <th>Date</th><th>Invoice No</th><th>Customer</th><th>Value</th><th>Freight</th><th>Total</th><th>Responsible Person</th><th></th>' +
   '      </tr></thead>' +
-  '      <tbody id="tableBody"><tr><td colspan="6" class="loading-row"><div class="spinner"></div>Loading invoices…</td></tr></tbody>' +
+  '      <tbody id="tableBody"><tr><td colspan="8" class="loading-row"><div class="spinner"></div>Loading invoices…</td></tr></tbody>' +
   '    </table>' +
   '  </div>' +
   '</div>';
@@ -597,28 +602,22 @@ let allInvoices = [];
 let filtered = [];
 let pendingDelete = null;
 
-function monthKey(value) {
-  if (!value) return '';
+function dateInRange(value, from, to) {
+  if (!value) return !from && !to;
   const d = new Date(value);
-  if (isNaN(d.getTime())) return '';
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-}
-
-function monthLabel(key) {
-  const parts = key.split('-');
-  const d = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
-  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
+  if (isNaN(d.getTime())) return !from && !to;
+  const dayStr = d.toISOString().slice(0, 10);
+  if (from && dayStr < from) return false;
+  if (to && dayStr > to) return false;
+  return true;
 }
 
 function populateFilterOptions() {
   function uniqueSorted(key) { return [...new Set(allInvoices.map(i => i[key]).filter(Boolean))].sort(); }
   const customerSel = document.getElementById('filterCustomer');
-  const monthSel = document.getElementById('filterMonth');
   const currencySel = document.getElementById('filterCurrency');
   const responsibleSel = document.getElementById('filterResponsible');
   uniqueSorted('customerName').forEach(v => customerSel.insertAdjacentHTML('beforeend', '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>'));
-  const months = [...new Set(allInvoices.map(i => monthKey(i.invoiceDate)).filter(Boolean))].sort().reverse();
-  months.forEach(k => monthSel.insertAdjacentHTML('beforeend', '<option value="' + k + '">' + monthLabel(k) + '</option>'));
   uniqueSorted('currency').forEach(v => currencySel.insertAdjacentHTML('beforeend', '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>'));
   uniqueSorted('responsiblePerson').forEach(v => responsibleSel.insertAdjacentHTML('beforeend', '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>'));
 }
@@ -627,7 +626,8 @@ function applyFilters() {
   const searchInput = document.getElementById('searchInput');
   const q = searchInput.value.trim().toLowerCase();
   const customer = document.getElementById('filterCustomer').value;
-  const month = document.getElementById('filterMonth').value;
+  const dateFrom = document.getElementById('filterDateFrom').value;
+  const dateTo = document.getElementById('filterDateTo').value;
   const currency = document.getElementById('filterCurrency').value;
   const responsible = document.getElementById('filterResponsible').value;
   document.getElementById('searchClearBtn').classList.toggle('show', q.length > 0);
@@ -637,10 +637,10 @@ function applyFilters() {
     const haystack = [r.invoiceNo, r.customerName, r.responsiblePerson].filter(Boolean).join(' ').toLowerCase();
     const matchesQ = qWords.length === 0 || qWords.every(w => haystack.includes(w));
     const matchesCustomer = !customer || r.customerName === customer;
-    const matchesMonth = !month || monthKey(r.invoiceDate) === month;
+    const matchesDate = (!dateFrom && !dateTo) || dateInRange(r.invoiceDate, dateFrom, dateTo);
     const matchesCurrency = !currency || r.currency === currency;
     const matchesResponsible = !responsible || r.responsiblePerson === responsible;
-    return matchesQ && matchesCustomer && matchesMonth && matchesCurrency && matchesResponsible;
+    return matchesQ && matchesCustomer && matchesDate && matchesCurrency && matchesResponsible;
   });
   renderTable();
   renderTotals();
@@ -652,18 +652,26 @@ function renderTotals() {
   const sums = {};
   filtered.forEach(function (r) {
     const cur = r.currency || 'USD';
-    sums[cur] = (sums[cur] || 0) + (Number(r.value) || 0);
+    if (!sums[cur]) sums[cur] = { value: 0, freight: 0, total: 0 };
+    const value = Number(r.value) || 0;
+    const freight = Number(r.freight) || 0;
+    sums[cur].value += value;
+    sums[cur].freight += freight;
+    sums[cur].total += (r.total !== undefined && r.total !== '' && r.total !== null) ? Number(r.total) : value + freight;
   });
   const parts = Object.keys(sums).sort().map(function (cur) {
-    return '<strong>' + formatCurrency(sums[cur], cur) + '</strong>';
+    return '<strong>' + cur + '</strong> Value: <strong>' + formatCurrency(sums[cur].value, cur) + '</strong>' +
+      ' &nbsp;·&nbsp; Freight: <strong>' + formatCurrency(sums[cur].freight, cur) + '</strong>' +
+      ' &nbsp;·&nbsp; Total: <strong>' + formatCurrency(sums[cur].total, cur) + '</strong>';
   });
-  bar.innerHTML = 'Total (' + filtered.length + (filtered.length === 1 ? ' invoice' : ' invoices') + '): ' + parts.join(' &nbsp;+&nbsp; ');
+  bar.innerHTML = 'Totals (' + filtered.length + (filtered.length === 1 ? ' invoice' : ' invoices') + '): ' + parts.join(' &nbsp;&nbsp;|&nbsp;&nbsp; ');
 }
 
 function clearAllFilters() {
   document.getElementById('searchInput').value = '';
   document.getElementById('filterCustomer').value = '';
-  document.getElementById('filterMonth').value = '';
+  document.getElementById('filterDateFrom').value = '';
+  document.getElementById('filterDateTo').value = '';
   document.getElementById('filterCurrency').value = '';
   document.getElementById('filterResponsible').value = '';
   applyFilters();
@@ -672,17 +680,22 @@ function clearAllFilters() {
 function renderTable() {
   const tbody = document.getElementById('tableBody');
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">' +
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>' +
       '<div>No invoices match your search or filters.</div></div></td></tr>';
     return;
   }
   tbody.innerHTML = filtered.map(function (r) {
+    const value = Number(r.value) || 0;
+    const freight = Number(r.freight) || 0;
+    const total = (r.total !== undefined && r.total !== '' && r.total !== null) ? Number(r.total) : value + freight;
     return '<tr>' +
+      '<td>' + formatDate(r.invoiceDate) + '</td>' +
       '<td><strong>' + escapeHtml(r.invoiceNo) + '</strong></td>' +
       '<td>' + escapeHtml(r.customerName) + '</td>' +
-      '<td>' + formatDate(r.invoiceDate) + '</td>' +
-      '<td>' + formatCurrency(r.value, r.currency) + '</td>' +
+      '<td>' + formatCurrency(value, r.currency) + '</td>' +
+      '<td>' + formatCurrency(freight, r.currency) + '</td>' +
+      '<td>' + formatCurrency(total, r.currency) + '</td>' +
       '<td>' + escapeHtml(r.responsiblePerson) + '</td>' +
       '<td><div class="row-actions">' +
       (currentSession.role === 'admin' ? '  <a class="btn btn-outline btn-sm" href="add-invoice.html?edit=' + encodeURIComponent(r.invoiceNo) + '" title="Edit">Edit</a>' : '') +
@@ -742,7 +755,10 @@ function confirmDelete(invoiceNo) {
 function exportToExcel() {
   if (filtered.length === 0) { showToast('No records to export.', 'error'); return; }
   const rows = filtered.map(function (r) {
-    return { 'Invoice No': r.invoiceNo, 'Customer': r.customerName, 'Date': formatDate(r.invoiceDate), 'Value': r.value, 'Currency': r.currency, 'Responsible Person': r.responsiblePerson };
+    const value = Number(r.value) || 0;
+    const freight = Number(r.freight) || 0;
+    const total = (r.total !== undefined && r.total !== '' && r.total !== null) ? Number(r.total) : value + freight;
+    return { 'Date': formatDate(r.invoiceDate), 'Invoice No': r.invoiceNo, 'Customer': r.customerName, 'Value': value, 'Freight': freight, 'Total': total, 'Currency': r.currency, 'Responsible Person': r.responsiblePerson };
   });
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
@@ -757,19 +773,20 @@ async function loadInvoices(force) {
     if (document.getElementById('filterCurrency').children.length === 1) populateFilterOptions();
     applyFilters();
   } catch (err) {
-    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state" style="color:var(--danger-dark)">Error loading data: ' + escapeHtml(err.message) + '</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state" style="color:var(--danger-dark)">Error loading data: ' + escapeHtml(err.message) + '</div></td></tr>';
   }
 }
 
 function activeFilterSummary() {
   const parts = [];
   const customer = document.getElementById('filterCustomer').value;
-  const month = document.getElementById('filterMonth').value;
+  const dateFrom = document.getElementById('filterDateFrom').value;
+  const dateTo = document.getElementById('filterDateTo').value;
   const currency = document.getElementById('filterCurrency').value;
   const responsible = document.getElementById('filterResponsible').value;
   const q = document.getElementById('searchInput').value.trim();
   if (customer) parts.push('Customer: ' + customer);
-  if (month) parts.push('Month: ' + monthLabel(month));
+  if (dateFrom || dateTo) parts.push('Date: ' + (dateFrom || '\u2026') + ' to ' + (dateTo || '\u2026'));
   if (currency) parts.push('Currency: ' + currency);
   if (responsible) parts.push('Responsible: ' + responsible);
   if (q) parts.push('Search: "' + q + '"');
@@ -779,11 +796,16 @@ function activeFilterSummary() {
 function generatePrintReport() {
   if (filtered.length === 0) { showToast('No records to print — adjust your filters first.', 'error'); return; }
   const rowsHtml = filtered.map(function (r) {
+    const value = Number(r.value) || 0;
+    const freight = Number(r.freight) || 0;
+    const total = (r.total !== undefined && r.total !== '' && r.total !== null) ? Number(r.total) : value + freight;
     return '<tr>' +
+      '<td>' + formatDate(r.invoiceDate) + '</td>' +
       '<td>' + escapeHtml(r.invoiceNo) + '</td>' +
       '<td>' + escapeHtml(r.customerName) + '</td>' +
-      '<td>' + formatDate(r.invoiceDate) + '</td>' +
-      '<td>' + formatCurrency(r.value, r.currency) + '</td>' +
+      '<td>' + formatCurrency(value, r.currency) + '</td>' +
+      '<td>' + formatCurrency(freight, r.currency) + '</td>' +
+      '<td>' + formatCurrency(total, r.currency) + '</td>' +
       '<td>' + escapeHtml(r.responsiblePerson) + '</td>' +
       '</tr>';
   }).join('');
@@ -791,10 +813,19 @@ function generatePrintReport() {
   const sums = {};
   filtered.forEach(function (r) {
     const cur = r.currency || 'USD';
-    sums[cur] = (sums[cur] || 0) + (Number(r.value) || 0);
+    if (!sums[cur]) sums[cur] = { value: 0, freight: 0, total: 0 };
+    const value = Number(r.value) || 0;
+    const freight = Number(r.freight) || 0;
+    sums[cur].value += value;
+    sums[cur].freight += freight;
+    sums[cur].total += (r.total !== undefined && r.total !== '' && r.total !== null) ? Number(r.total) : value + freight;
   });
   const totalsHtml = Object.keys(sums).sort().map(function (cur) {
-    return '<tr class="totals-row"><td colspan="3" style="text-align:right;"><strong>Total (' + escapeHtml(cur) + ')</strong></td><td><strong>' + formatCurrency(sums[cur], cur) + '</strong></td><td></td></tr>';
+    return '<tr class="totals-row"><td colspan="3" style="text-align:right;"><strong>Total (' + escapeHtml(cur) + ')</strong></td>' +
+      '<td><strong>' + formatCurrency(sums[cur].value, cur) + '</strong></td>' +
+      '<td><strong>' + formatCurrency(sums[cur].freight, cur) + '</strong></td>' +
+      '<td><strong>' + formatCurrency(sums[cur].total, cur) + '</strong></td>' +
+      '<td></td></tr>';
   }).join('');
 
   document.getElementById('printReport').innerHTML =
@@ -803,7 +834,7 @@ function generatePrintReport() {
     '  <div class="report-title"><h1>Invoice Report</h1><div class="meta">' + escapeHtml(activeFilterSummary()) + '</div>' +
     '  <div class="meta">' + filtered.length + ' record' + (filtered.length === 1 ? '' : 's') + '</div></div>' +
     '</div>' +
-    '<table><thead><tr><th>Invoice No</th><th>Customer</th><th>Date</th><th>Value</th><th>Responsible</th></tr></thead>' +
+    '<table><thead><tr><th>Date</th><th>Invoice No</th><th>Customer</th><th>Value</th><th>Freight</th><th>Total</th><th>Responsible</th></tr></thead>' +
     '<tbody>' + rowsHtml + totalsHtml + '</tbody></table>' +
     '<div class="report-footer">Generated on ' + formatDate(new Date()) + ' — ' + escapeHtml(COMPANY.name) + '</div>';
 
@@ -817,7 +848,8 @@ document.getElementById('searchClearBtn').addEventListener('click', function () 
 });
 document.getElementById('clearFiltersBtn').addEventListener('click', clearAllFilters);
 document.getElementById('filterCustomer').addEventListener('change', applyFilters);
-document.getElementById('filterMonth').addEventListener('change', applyFilters);
+document.getElementById('filterDateFrom').addEventListener('change', applyFilters);
+document.getElementById('filterDateTo').addEventListener('change', applyFilters);
 document.getElementById('filterCurrency').addEventListener('change', applyFilters);
 document.getElementById('filterResponsible').addEventListener('change', applyFilters);
 document.getElementById('exportBtn').addEventListener('click', exportToExcel);
