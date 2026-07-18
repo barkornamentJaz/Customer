@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Add Invoice · Bark Ornament CMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="logo.png">
+<style>
+:root {
+  --ink: #0F2A47; --steel: #2E6096; --steel-dark: #1F4670; --canvas: #F4F6F9; --card: #FFFFFF;
+  --text: #1F2937; --muted: #6B7280; --border: #E3E7ED; --danger: #EF4444; --danger-dark: #C0392B;
+  --radius: 10px; --shadow: 0 1px 2px rgba(20, 33, 61, 0.06), 0 4px 16px rgba(20, 33, 61, 0.06);
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-head: 'Sora', 'Inter', sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; font-family: var(--font-body); background: var(--canvas); color: var(--text); font-size: 14.5px; line-height: 1.5; }
+h1, h2, h3, h4 { font-family: var(--font-head); margin: 0; color: var(--ink); }
+a { color: var(--steel); text-decoration: none; }
+button, input, select, textarea { font-family: inherit; font-size: inherit; }
+#app-shell { display: flex; min-height: 100vh; }
+.sidebar { width: 240px; background: var(--ink); color: #E7EBF3; display: flex; flex-direction: column; flex-shrink: 0; position: sticky; top: 0; height: 100vh; }
+.brand { display: flex; align-items: center; gap: 12px; padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.brand-mark { width: 42px; height: 42px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #fff; flex-shrink: 0; box-shadow: 0 0 0 2px rgba(255,255,255,0.15); }
+.brand-mark img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.brand-name { font-family: var(--font-head); font-weight: 600; font-size: 15px; color: #fff; }
+.brand-sub { font-size: 11.5px; color: #9BA9C4; margin-top: 2px; }
+.nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; }
+.nav-link { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; color: #C4CDE0; font-size: 14px; font-weight: 500; transition: background 0.15s, color 0.15s; }
+.nav-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.nav-link.active { background: var(--steel); color: #fff; font-weight: 600; }
+.nav-icon { width: 18px; height: 18px; flex-shrink: 0; }
+.sidebar-footer { padding: 16px 20px 22px; font-size: 11px; color: #7C8AA8; border-top: 1px solid rgba(255,255,255,0.08); line-height: 1.5; }
+.session-info { font-size: 12px; color: #C7D0E0; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.session-info strong { color: #fff; font-weight: 600; word-break: break-all; }
+.session-info a { color: #8FB6E0; }
+.session-info a:hover { color: #fff; }
+.mobile-topbar { display: none; align-items: center; gap: 12px; background: var(--ink); color: #fff; padding: 14px 16px; position: sticky; top: 0; z-index: 20; }
+.menu-toggle { background: none; border: none; color: #fff; padding: 4px; cursor: pointer; }
+.menu-toggle svg { width: 22px; height: 22px; }
+.main { flex: 1; padding: 32px 36px; max-width: 900px; width: 100%; }
+.page-header { margin-bottom: 24px; }
+.page-header h1 { font-size: 24px; }
+.page-header p { color: var(--muted); margin: 6px 0 0; font-size: 13.5px; }
+.card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); padding: 26px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 20px; }
+@media (max-width: 720px) { .form-grid { grid-template-columns: 1fr; } }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field.full { grid-column: 1 / -1; }
+.field label { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.field .hint { font-size: 11.5px; color: var(--muted); }
+.field input, .field select {
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text); outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.field input:focus, .field select:focus { border-color: var(--steel); box-shadow: 0 0 0 3px rgba(58, 90, 140, 0.15); }
+.field input.invalid, .field select.invalid { border-color: var(--danger); }
+.field .error-msg { font-size: 11.5px; color: var(--danger); min-height: 14px; }
+.field input[readonly] { background: var(--canvas); color: var(--muted); }
+.form-actions { display: flex; gap: 12px; margin-top: 22px; justify-content: flex-end; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 8px; border: 1px solid transparent; font-weight: 600; font-size: 13.5px; cursor: pointer; transition: transform 0.1s, background 0.15s; white-space: nowrap; }
+.btn:active { transform: translateY(1px); }
+.btn-accent { background: var(--steel); color: #fff; }
+.btn-accent:hover { background: var(--steel-dark); }
+.btn-outline { background: #fff; color: var(--ink); border-color: var(--border); }
+.btn-outline:hover { border-color: var(--steel); color: var(--steel); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+#toast-container { position: fixed; top: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 10px; }
+.toast { background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 8px; font-size: 13.5px; font-weight: 500; box-shadow: var(--shadow); opacity: 0; transform: translateY(-8px); transition: opacity 0.25s, transform 0.25s; max-width: 320px; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast-success { background: #0F5D46; }
+.toast-error { background: var(--danger-dark); }
+@media (max-width: 900px) {
+  .sidebar { position: fixed; left: 0; top: 0; height: 100vh; z-index: 30; transform: translateX(-100%); transition: transform 0.2s ease; }
+  .sidebar.open { transform: translateX(0); }
+  .mobile-topbar { display: flex; }
+  .main { padding: 20px; }
+}
+</style>
+</head>
+<body>
+
+<div id="app-shell"></div>
+
+<script>
+/**
+ * Paste your deployed Google Apps Script Web App URL below.
+ * Deploy > New deployment > Web app > Execute as: Me > Who has access: Anyone
+ * The URL ends with /exec
+ */
+const API_URL = 'https://script.google.com/macros/s/AKfycbxFb-wqcSjnSsP_jPqv_6B1FG912MRO7G2keSJCSgGB6_-n4kQ3SU7OPBpGM7gqr1g/exec';
+
+const COMPANY = {
+  name: 'Bark Ornament Private Limited',
+  address: 'No. 59A Bekkegama, Panadura'
+};
+
+const STATUS_OPTIONS = [
+  'New Lead',
+  'Existing Customer'
+];
+
+// Order reflects the sales pipeline, used for the funnel visual on the dashboard.
+const STATUS_PIPELINE_ORDER = [
+  'New Lead',
+  'Existing Customer'
+];
+
+const STATUS_COLORS = {
+  'New Lead': '#94A3B8',
+  'Existing Customer': '#10B981'
+};
+
+// How this customer/lead first came in. "Other" reveals a free-text box
+// so anything not on the list can still be captured.
+const SOURCE_OPTIONS = [
+  'WhatsApp',
+  'Facebook',
+  'Instagram',
+  'Email',
+  'Phone Call',
+  'Website',
+  'Referral',
+  'Walk-in',
+  'Other'
+];
+
+// Currencies offered on the Invoice / Quotation forms. Matches the
+// currencies actually used across customer records (LKR for Local,
+// USD for Maldives/Seychelles).
+const CURRENCY_LIST = [
+  { code: 'USD', name: 'US Dollar' }
+];
+
+// Must match QUOTATION_STATUSES in the Apps Script backend exactly.
+const QUOTATION_STATUSES = ['Pending', 'Approved', 'Rejected', 'Repeat'];
+
+/* ---------- Country / currency / serial-prefix configuration ----------
+   Each country has a serial-number prefix (e.g. MAL-0001) and a currency.
+   Defaults cover the current business segments; more can be added from
+   the Add Customer form ("+ Add New Country") without touching code.
+   NOTE: custom countries are stored in this browser's localStorage, so
+   they are per-device for now — see chat notes on syncing this via the
+   Apps Script backend if the whole team needs to see new countries. */
+
+const DEFAULT_COUNTRIES = [
+  { name: 'Seychelles', prefix: 'SEY', currency: 'USD' }
+];
+
+const CountryConfig = {
+  _key: 'bo_custom_countries',
+  _customList() {
+    try {
+      const raw = localStorage.getItem(this._key);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  },
+  getAll() {
+    const map = {};
+    DEFAULT_COUNTRIES.forEach(function (c) { map[c.name.toLowerCase()] = c; });
+    this._customList().forEach(function (c) { map[c.name.toLowerCase()] = c; });
+    return Object.values(map).sort(function (a, b) { return a.name.localeCompare(b.name); });
+  },
+  find(name) {
+    const key = String(name || '').toLowerCase();
+    return this.getAll().find(function (c) { return c.name.toLowerCase() === key; });
+  },
+  add(entry) {
+    const name = (entry.name || '').trim();
+    const prefix = (entry.prefix || '').trim().toUpperCase();
+    const currency = (entry.currency || '').trim().toUpperCase();
+    if (!name || !prefix || !currency) throw new Error('Country name, serial prefix, and currency are all required.');
+    if (!/^[A-Z]{2,5}$/.test(prefix)) throw new Error('Prefix should be 2-5 letters, e.g. MAL, SEY, MAU.');
+    if (!/^[A-Z]{3}$/.test(currency)) throw new Error('Currency should be a 3-letter code, e.g. USD, LKR.');
+    const existing = this.getAll();
+    if (existing.some(function (c) { return c.name.toLowerCase() === name.toLowerCase(); })) throw new Error('That country already exists.');
+    if (existing.some(function (c) { return c.prefix.toLowerCase() === prefix.toLowerCase(); })) throw new Error('That serial prefix is already in use — pick a different one.');
+    const list = this._customList();
+    const record = { name: name, prefix: prefix, currency: currency };
+    list.push(record);
+    localStorage.setItem(this._key, JSON.stringify(list));
+    return record;
+  }
+};
+
+// Given the current customer list and a country's prefix, work out the next
+// serial number in sequence, e.g. existing MAL-0001, MAL-0002 -> MAL-0003.
+function nextSerialNo(customers, prefix) {
+  let max = 0;
+  (customers || []).forEach(function (c) {
+    if (c.serialNo && c.serialNo.indexOf(prefix + '-') === 0) {
+      const n = parseInt(c.serialNo.slice(prefix.length + 1), 10);
+      if (!isNaN(n) && n > max) max = n;
+    }
+  });
+  return prefix + '-' + String(max + 1).padStart(4, '0');
+}
+
+/* ============================================================
+   Bark Ornament — Customer Management System
+   Shared utilities: navigation shell, API calls, helpers
+   ============================================================ */
+
+/* ---------- Navigation shell ---------- */
+
+function renderShell(activePage) {
+  const session = Session.get();
+  const isAdmin = !!session && session.role === 'admin';
+
+  const nav = [
+    { key: 'dashboard', label: 'Dashboard', href: 'index.html', icon: 'grid' },
+    { key: 'register', label: 'Add Customer', href: 'register.html', icon: 'plus' },
+    { key: 'customers', label: 'Customers', href: 'customers.html', icon: 'list' },
+    { key: 'quotations', label: 'Quotations', href: 'quotations.html', icon: 'quote' },
+    { key: 'invoices', label: 'Invoices', href: 'invoices.html', icon: 'invoice' },
+    { key: 'pos', label: 'Purchase Orders', href: 'pos.html', icon: 'po' }
+  ];
+  if (isAdmin) {
+    nav.push({ key: 'team', label: 'Team Access', href: 'login.html', icon: 'team' });
+  }
+
+  const icons = {
+    grid: '<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    quote: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6M9 11h3"/>',
+    invoice: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 17h6M9 13h6"/>',
+    po: '<path d="M9 14l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.06 0 3.96.7 5.47 1.86"/><path d="M16 4l2 2-2 2"/>',
+    team: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>'
+  };
+
+  const navHtml = nav.map(function (item) {
+    const active = item.key === activePage ? ' active' : '';
+    return '<a class="nav-link' + active + '" href="' + item.href + '">' +
+      '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + icons[item.icon] + '</svg>' +
+      '<span>' + item.label + '</span></a>';
+  }).join('');
+
+  const shell = document.getElementById('app-shell');
+  shell.innerHTML =
+    '<aside class="sidebar">' +
+    '  <div class="brand">' +
+    '    <div class="brand-mark"><img src="logo.png" alt="Bark Ornament logo"></div>' +
+    '    <div class="brand-text">' +
+    '      <div class="brand-name">Bark Ornament</div>' +
+    '      <div class="brand-sub">Customer Management</div>' +
+    '    </div>' +
+    '  </div>' +
+    '  <nav class="nav">' + navHtml + '</nav>' +
+    '  <div class="sidebar-footer">' +
+    (session ?
+      '<div class="session-info"><strong>' + escapeHtml(session.email) + '</strong><br>' +
+      (isAdmin ? 'Admin' : 'Team member') + ' &middot; <a href="#" id="logoutLink">Log out</a></div>' : '') +
+    COMPANY.name + '<br>' + COMPANY.address +
+    '</div>' +
+    '</aside>' +
+    '<div class="mobile-topbar">' +
+    '  <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">' +
+    '    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>' +
+    '  </button>' +
+    '  <span class="brand-name">Bark Ornament</span>' +
+    '</div>' +
+    '<main class="main" id="main-content"></main>';
+
+  const logoutLink = document.getElementById('logoutLink');
+  if (logoutLink) {
+    logoutLink.addEventListener('click', function (e) {
+      e.preventDefault();
+      Session.logout();
+    });
+  }
+
+  const toggle = document.getElementById('menuToggle');
+  if (toggle) {
+    toggle.addEventListener('click', function () {
+      document.querySelector('.sidebar').classList.toggle('open');
+    });
+  }
+}
+
+/* ---------- Toast notifications ---------- */
+
+function showToast(message, type) {
+  type = type || 'info';
+  let container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-' + type;
+  toast.textContent = message;
+  container.appendChild(toast);
+  requestAnimationFrame(function () { toast.classList.add('show'); });
+  setTimeout(function () {
+    toast.classList.remove('show');
+    setTimeout(function () { toast.remove(); }, 300);
+  }, 3200);
+}
+
+/* ---------- Session / auth ----------
+   Login is required to use this app. A logged-in session (email, role,
+   signed token, expiry) is cached in localStorage so people stay signed
+   in across visits until the token expires (server-side, default 12h)
+   or they log out. The role check here only controls what UI is shown —
+   the real security boundary is the token check the backend does on
+   every add/update/delete request. */
+const Session = {
+  _key: 'bo_session',
+  get() {
+    try {
+      const raw = localStorage.getItem(this._key);
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      if (!s || !s.token || !s.exp || Date.now() > s.exp) { this.clear(); return null; }
+      return s;
+    } catch (e) { return null; }
+  },
+  set(s) { try { localStorage.setItem(this._key, JSON.stringify(s)); } catch (e) { /* ignore */ } },
+  clear() { try { localStorage.removeItem(this._key); } catch (e) { /* ignore */ } },
+  isAdmin() { const s = this.get(); return !!s && s.role === 'admin'; },
+  /** Redirects to login.html if there's no valid session; returns the session otherwise. */
+  requireLogin() {
+    const s = this.get();
+    if (!s) {
+      const here = encodeURIComponent(location.pathname.split('/').pop() + location.search);
+      window.location.href = 'login.html?redirect=' + here;
+      return null;
+    }
+    return s;
+  },
+  logout() {
+    this.clear();
+    window.location.href = 'login.html';
+  }
+};
+
+/* ---------- API layer ---------- */
+
+const Api = {
+  async getCustomers() {
+    if (!API_URL || API_URL.indexOf('PASTE_YOUR') === 0) {
+      throw new Error('API_URL is not configured.');
+    }
+    const s = Session.get();
+    const url = API_URL + '?token=' + encodeURIComponent(s ? s.token : '');
+    const res = await fetch(url, { method: 'GET' });
+    const json = await res.json();
+    if (!json.success) { handleAuthError(json.error); throw new Error(json.error || 'Failed to load customers'); }
+    return json.data;
+  },
+
+  async addCustomer(data) {
+    return this._post({ action: 'add', data: data });
+  },
+
+  async updateCustomer(data) {
+    return this._post({ action: 'update', data: data });
+  },
+
+  async deleteCustomer(serialNo) {
+    return this._post({ action: 'delete', serialNo: serialNo });
+  },
+
+  async getQuotations() {
+    return this._get('quotations');
+  },
+
+  async addQuotation(data) {
+    return this._post({ action: 'addQuotation', data: data });
+  },
+
+  async updateQuotation(data) {
+    return this._post({ action: 'updateQuotation', data: data });
+  },
+
+  async deleteQuotation(quotationNo) {
+    return this._post({ action: 'deleteQuotation', quotationNo: quotationNo });
+  },
+
+  async getInvoices() {
+    return this._get('invoices');
+  },
+
+  async addInvoice(data) {
+    return this._post({ action: 'addInvoice', data: data });
+  },
+
+  async updateInvoice(data) {
+    return this._post({ action: 'updateInvoice', data: data });
+  },
+
+  async deleteInvoice(invoiceNo) {
+    return this._post({ action: 'deleteInvoice', invoiceNo: invoiceNo });
+  },
+
+  async _get(action) {
+    const s = Session.get();
+    const url = API_URL + '?action=' + encodeURIComponent(action) + '&token=' + encodeURIComponent(s ? s.token : '');
+    const res = await fetch(url, { method: 'GET' });
+    const json = await res.json();
+    if (!json.success) { handleAuthError(json.error); throw new Error(json.error || ('Failed to load ' + action)); }
+    return json.data;
+  },
+
+  async _post(body) {
+    const s = Session.get();
+    body.token = s ? s.token : '';
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids CORS preflight on Apps Script
+      body: JSON.stringify(body)
+    });
+    const json = await res.json();
+    if (!json.success) { handleAuthError(json.error); throw new Error(json.error || 'Request failed'); }
+    return json.data;
+  }
+};
+
+/** If the backend rejected a call because the session is invalid/expired or
+ *  the action needed admin rights, act accordingly instead of just showing
+ *  a raw error string. */
+function handleAuthError(errorCode) {
+  if (errorCode === 'AUTH_REQUIRED') {
+    Session.clear();
+    showToast('Your session has expired — please log in again.', 'error');
+    setTimeout(function () { window.location.href = 'login.html'; }, 1200);
+  }
+}
+
+/* ---------- Formatting helpers ---------- */
+
+function formatCurrency(value, currency) {
+  const num = Number(value) || 0;
+  return (currency || 'USD') + ' ' + num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function formatDate(value) {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return String(value);
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function statusBadge(status) {
+  const color = STATUS_COLORS[status] || '#9CA3AF';
+  return '<span class="status-badge" style="--badge-color:' + color + '">' +
+    '<span class="status-dot"></span>' + status + '</span>';
+}
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/* ---------- Simple client-side cache shared across pages in one session ---------- */
+
+const CustomerStore = {
+  _data: null,
+  async load(force) {
+    if (this._data && !force) return this._data;
+    this._data = await Api.getCustomers();
+    return this._data;
+  },
+  invalidate() { this._data = null; }
+};
+
+const QuotationStore = {
+  _data: null,
+  async load(force) {
+    if (this._data && !force) return this._data;
+    this._data = await Api.getQuotations();
+    return this._data;
+  },
+  invalidate() { this._data = null; }
+};
+
+const InvoiceStore = {
+  _data: null,
+  async load(force) {
+    if (this._data && !force) return this._data;
+    this._data = await Api.getInvoices();
+    return this._data;
+  },
+  invalidate() { this._data = null; }
+};
+
+</script>
+<script>
+const currentSession = Session.requireLogin();
+if (!currentSession) { throw new Error('Redirecting to login…'); }
+
+renderShell('invoices');
+
+const params = new URLSearchParams(window.location.search);
+const editingInvoiceNo = params.get('edit');
+const isEditMode = !!editingInvoiceNo;
+
+if (isEditMode && currentSession.role !== 'admin') {
+  window.location.href = 'invoices.html';
+  throw new Error('Redirecting — only admins can edit invoices.');
+}
+
+const currencyOptionsHtml = CURRENCY_LIST.map(c => '<option value="' + c.code + '">' + c.code + ' — ' + c.name + '</option>').join('');
+
+const mainEl = document.getElementById('main-content');
+mainEl.innerHTML =
+  '<div class="page-header"><h1>' + (isEditMode ? 'Edit Invoice' : 'Add Invoice') + '</h1><p>' + (isEditMode ? 'Update an existing invoice.' : 'Create a new invoice record.') + '</p></div>' +
+  '<div class="card">' +
+  '  <form id="invoiceForm" novalidate>' +
+  '    <div class="form-grid">' +
+  '      <div class="field"><label>Invoice No *</label>' +
+  '        <input type="text" id="invoiceNo" placeholder="e.g. INV-0001"' + (isEditMode ? ' readonly' : '') + '>' +
+  '        <div class="error-msg" data-for="invoiceNo"></div></div>' +
+
+  '      <div class="field"><label>Customer *</label>' +
+  '        <select id="customerSerialNo"><option value="">Loading customers…</option></select>' +
+  '        <div class="error-msg" data-for="customerSerialNo"></div></div>' +
+
+  '      <div class="field"><label>Invoice Date *</label>' +
+  '        <input type="date" id="invoiceDate">' +
+  '        <div class="error-msg" data-for="invoiceDate"></div></div>' +
+
+  '      <div class="field"><label>Currency *</label>' +
+  '        <select id="currency">' + currencyOptionsHtml + '</select></div>' +
+
+  '      <div class="field"><label>Value *</label>' +
+  '        <input type="number" id="value" step="0.01" min="0" placeholder="0.00">' +
+  '        <div class="error-msg" data-for="value"></div></div>' +
+
+  '      <div class="field"><label>Freight Charges</label>' +
+  '        <input type="number" id="freight" step="0.01" min="0" placeholder="0.00">' +
+  '        <div class="hint">Optional — leave blank if not applicable.</div>' +
+  '        <div class="error-msg" data-for="freight"></div></div>' +
+
+  '      <div class="field"><label>Total</label>' +
+  '        <input type="text" id="total" readonly style="background:var(--canvas);color:var(--muted);font-weight:600;">' +
+  '        <div class="hint">Value + Freight, calculated automatically.</div></div>' +
+
+  '      <div class="field"><label>Responsible Person</label>' +
+  '        <input type="text" id="responsiblePerson" readonly placeholder="Auto-filled from customer">' +
+  '        <div class="hint">Set automatically from the selected customer\'s record.</div></div>' +
+  '    </div>' +
+  '    <div class="form-actions">' +
+  '      <a href="invoices.html" class="btn btn-outline">Cancel</a>' +
+  '      <button type="submit" class="btn btn-accent" id="saveBtn">' + (isEditMode ? 'Save Changes' : 'Create Invoice') + '</button>' +
+  '    </div>' +
+  '  </form>' +
+  '</div>';
+
+let customers = [];
+
+function populateCustomerSelect(selectedSerial) {
+  const sel = document.getElementById('customerSerialNo');
+  sel.innerHTML = '<option value="">Select a customer…</option>' +
+    customers.map(c => '<option value="' + escapeHtml(c.serialNo) + '">' + escapeHtml(c.companyName) + ' (' + escapeHtml(c.serialNo) + ')</option>').join('');
+  if (selectedSerial) sel.value = selectedSerial;
+  updateResponsiblePerson();
+}
+
+function updateResponsiblePerson() {
+  const serial = document.getElementById('customerSerialNo').value;
+  const customer = customers.find(c => c.serialNo === serial);
+  document.getElementById('responsiblePerson').value = customer ? (customer.responsiblePerson || '') : '';
+}
+
+function updateTotal() {
+  const value = Number(document.getElementById('value').value) || 0;
+  const freight = Number(document.getElementById('freight').value) || 0;
+  const currency = document.getElementById('currency').value;
+  document.getElementById('total').value = formatCurrency(value + freight, currency);
+}
+
+function clearErrors() {
+  document.querySelectorAll('.error-msg').forEach(el => el.textContent = '');
+  document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
+}
+
+function setError(field, message) {
+  const el = document.querySelector('.error-msg[data-for="' + field + '"]');
+  if (el) el.textContent = message;
+  const input = document.getElementById(field);
+  if (input) input.classList.add('invalid');
+}
+
+function validate() {
+  clearErrors();
+  let ok = true;
+  if (!document.getElementById('invoiceNo').value.trim()) { setError('invoiceNo', 'Invoice No is required.'); ok = false; }
+  if (!document.getElementById('customerSerialNo').value) { setError('customerSerialNo', 'Please select a customer.'); ok = false; }
+  if (!document.getElementById('invoiceDate').value) { setError('invoiceDate', 'Invoice date is required.'); ok = false; }
+  const val = document.getElementById('value').value;
+  if (val === '' || Number(val) < 0) { setError('value', 'Enter a valid value.'); ok = false; }
+  const freight = document.getElementById('freight').value;
+  if (freight !== '' && Number(freight) < 0) { setError('freight', 'Must be zero or greater.'); ok = false; }
+  return ok;
+}
+
+async function init() {
+  try {
+    customers = await CustomerStore.load();
+  } catch (err) {
+    showToast('Error loading customers: ' + err.message, 'error');
+    customers = [];
+  }
+
+  let record = null;
+  if (isEditMode) {
+    try {
+      const invoices = await InvoiceStore.load();
+      record = invoices.find(i => i.invoiceNo === editingInvoiceNo);
+      if (!record) { showToast('Invoice not found.', 'error'); window.location.href = 'invoices.html'; return; }
+    } catch (err) {
+      showToast('Error loading invoice: ' + err.message, 'error');
+    }
+  }
+
+  populateCustomerSelect(record ? record.customerSerialNo : '');
+
+  if (record) {
+    document.getElementById('invoiceNo').value = record.invoiceNo || '';
+    document.getElementById('invoiceDate').value = record.invoiceDate ? new Date(record.invoiceDate).toISOString().slice(0, 10) : '';
+    document.getElementById('currency').value = record.currency || 'USD';
+    document.getElementById('value').value = record.value || '';
+    document.getElementById('freight').value = record.freight || '';
+  } else {
+    document.getElementById('invoiceDate').value = new Date().toISOString().slice(0, 10);
+  }
+  updateTotal();
+}
+
+document.getElementById('customerSerialNo').addEventListener('change', updateResponsiblePerson);
+document.getElementById('value').addEventListener('input', updateTotal);
+document.getElementById('freight').addEventListener('input', updateTotal);
+document.getElementById('currency').addEventListener('change', updateTotal);
+
+document.getElementById('invoiceForm').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  if (!validate()) return;
+
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+
+  const value = Number(document.getElementById('value').value) || 0;
+  const freight = Number(document.getElementById('freight').value) || 0;
+
+  const data = {
+    invoiceNo: document.getElementById('invoiceNo').value.trim(),
+    customerSerialNo: document.getElementById('customerSerialNo').value,
+    invoiceDate: document.getElementById('invoiceDate').value,
+    currency: document.getElementById('currency').value,
+    value: value,
+    freight: freight,
+    total: value + freight,
+    responsiblePerson: document.getElementById('responsiblePerson').value
+  };
+
+  try {
+    if (isEditMode) {
+      await Api.updateInvoice(data);
+      showToast('Invoice updated.', 'success');
+      InvoiceStore.invalidate();
+      window.location.href = 'invoices.html';
+    } else {
+      await Api.addInvoice(data);
+      showToast('Invoice created. Ready for the next one.', 'success');
+      InvoiceStore.invalidate();
+      resetFormForNextEntry();
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Create Invoice';
+    }
+  } catch (err) {
+    showToast('Error saving: ' + err.message, 'error');
+    saveBtn.disabled = false;
+    saveBtn.textContent = isEditMode ? 'Save Changes' : 'Create Invoice';
+  }
+});
+
+/** After a successful ADD (not edit), clears the form so another invoice
+ *  can be entered right away instead of navigating away to invoices.html. */
+function resetFormForNextEntry() {
+  clearErrors();
+  document.getElementById('invoiceNo').value = '';
+  document.getElementById('customerSerialNo').value = '';
+  document.getElementById('invoiceDate').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('value').value = '';
+  document.getElementById('freight').value = '';
+  document.getElementById('responsiblePerson').value = '';
+  document.getElementById('invoiceNo').focus();
+}
+
+init();
+</script>
+</body>
+</html>
