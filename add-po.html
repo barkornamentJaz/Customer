@@ -627,7 +627,12 @@ async function init() {
   if (isEditMode) {
     try {
       const poRecords = await POStore.load();
-      record = poRecords.find(q => q.poNo === editingPONo);
+      // Normalize: trim + collapse all whitespace (including non-breaking
+      // spaces) so a stray/invisible character in the sheet's PO No cell
+      // doesn't cause a false "not found" here.
+      const normalize = s => String(s || '').replace(/\s+/g, ' ').trim();
+      const wanted = normalize(editingPONo);
+      record = poRecords.find(q => normalize(q.poNo) === wanted);
       if (!record) { showToast('PO not found.', 'error'); window.location.href = 'pos.html'; return; }
     } catch (err) {
       showToast('Error loading PO: ' + err.message, 'error');
