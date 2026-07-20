@@ -499,7 +499,7 @@ const POStore = {
   _data: null,
   async load(force) {
     if (this._data && !force) return this._data;
-    this._data = await Api.getQuotations();
+    this._data = await Api.getPOs();
     return this._data;
   },
   invalidate() { this._data = null; }
